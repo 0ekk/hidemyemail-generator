@@ -1,12 +1,10 @@
 name: Release
 
-# workflow_dispatch builds and tests everything but signs nothing and publishes
-# nothing, so the expensive macOS path can be exercised from a branch without
-# spending a version number on a tag that might not ship.
+# This fork ships the container image only (see docker-image.yml), so the tag
+# trigger is off and nothing here runs on its own. workflow_dispatch still
+# builds and tests everything while signing and publishing nothing, and
+# restoring the two "push.tags" lines below brings desktop releases back.
 on:
-  push:
-    tags:
-      - "v*"
   workflow_dispatch:
 
 permissions:
@@ -54,6 +52,7 @@ jobs:
           uv run --frozen --with pyinstaller pyinstaller --onefile
           --name hidemyemail-windows
           --collect-data certifi
+          --add-data "src/hidemyemail_generator/static:hidemyemail_generator/static"
           --icon docs/icon.ico
           src/hidemyemail_generator/__main__.py
 

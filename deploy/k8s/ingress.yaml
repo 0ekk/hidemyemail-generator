@@ -1,0 +1,28 @@
+# Optional. Enable by uncommenting this file in kustomization.yaml and setting
+# the host. Exposing the UI beyond the cluster means anyone who reaches it and
+# holds the token controls the iCloud account behind the cookie, so terminate
+# TLS and keep the token secret.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: hidemyemail
+  labels:
+    app.kubernetes.io/name: hidemyemail
+  annotations: {}
+spec:
+  # ingressClassName: nginx
+  rules:
+    - host: hidemyemail.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: hidemyemail
+                port:
+                  name: http
+  # tls:
+  #   - hosts:
+  #       - hidemyemail.example.com
+  #     secretName: hidemyemail-tls

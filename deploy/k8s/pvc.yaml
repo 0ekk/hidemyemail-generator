@@ -1,0 +1,16 @@
+# The SQLite database, emails.txt, and CSV exports live here. ReadWriteOnce is
+# deliberate: the database tolerates exactly one writer, which is also why the
+# Deployment is pinned to one replica with the Recreate strategy.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: hidemyemail-data
+  labels:
+    app.kubernetes.io/name: hidemyemail
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  # storageClassName: your-storage-class

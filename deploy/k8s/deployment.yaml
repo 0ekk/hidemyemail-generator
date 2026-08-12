@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hidemyemail
+  labels:
+    app.kubernetes.io/name: hidemyemail
+spec:
+  # One replica, always. The database is SQLite on a ReadWriteOnce volume, and
+  # Apple's rate limit is per account, so a second replica buys nothing and
+  # risks two writers.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: hidemyemail
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: hidemyemail
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        # Gives the container's user access to the volume and to the Secret
+        # files, which are mounted 0440 root:fsGroup.
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: webui
+          # kustomization.yaml replaces the tag. IfNotPresent is safe only
+          # because that tag is immutable; a mutable one would leave the node
+          # serving whatever it cached first.
+          image: ghcr.io/0ekk/hidemyemail-generator:sha-REPLACE-ME
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8765
+          env:
+            # Set this and the token never appears in the pod log. Leave it out
+            # and the server generates one per restart and prints it instead.
+            - name: HIDEMYEMAIL_WEBUI_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hidemyemail
+                  key: webui-token
+            - name: HIDEMYEMAIL_REGION
+              value: global
+          # Paths come from the image; the volumes below back all of them.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: cookie
+              mountPath: /etc/hidemyemail
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: hidemyemail-data
+        # Only the cookie is projected. The token reaches the process through
+        # the environment, so it never lands on a filesystem. Replacing the
+        # Secret refreshes this file in place — the server reads it per request,
+        # so a rotated cookie takes effect without a restart.
+        - name: cookie
+          secret:
+            secretName: hidemyemail
+            defaultMode: 0440
+            items:
+              - key: cookies.txt
+                path: cookies.txt
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 16Mi

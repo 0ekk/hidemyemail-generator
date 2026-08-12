@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: hidemyemail
+
+resources:
+  - namespace.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  # - ingress.yaml
+
+# The Secret is not listed here on purpose: it holds a live iCloud session.
+# Create it with kubectl (see README.md) so it never sits in the repository.
+
+# Pinned to an immutable tag on purpose. `latest` follows the newest commit on
+# main, and a mutable tag makes a rollout unauditable and a rollback guesswork.
+# Every build publishes a `sha-<short commit>` tag; bump this one to deploy:
+#
+#   kustomize edit set image ghcr.io/0ekk/hidemyemail-generator=*:sha-e4f5a6b
+#
+images:
+  - name: ghcr.io/0ekk/hidemyemail-generator
+    newTag: sha-REPLACE-ME
