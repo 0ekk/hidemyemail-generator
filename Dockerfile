@@ -35,9 +35,12 @@ ENV PATH="/app/.venv/bin:$PATH" \
     HIDEMYEMAIL_INBOX_CONFIG_FILE=/data/inbox_config.json \
     HIDEMYEMAIL_EXPORT_DIR=/data/exports
 
+# Both directories belong to the runtime user: /etc/hidemyemail has to be
+# writable for the web UI to replace the session, unless something read-only
+# is mounted over it.
 RUN useradd --uid 1000 --create-home --shell /usr/sbin/nologin hidemyemail \
     && mkdir -p /data /etc/hidemyemail \
-    && chown -R 1000:1000 /data
+    && chown -R 1000:1000 /data /etc/hidemyemail
 
 COPY --from=build --chown=1000:1000 /app/.venv /app/.venv
 

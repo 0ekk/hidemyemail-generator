@@ -48,7 +48,13 @@ spec:
                   key: webui-token
             - name: HIDEMYEMAIL_REGION
               value: global
-          # Paths come from the image; the volumes below back all of them.
+            # On the volume rather than the image default, so the Overview
+            # panel can replace the session. A Secret mount is read-only and
+            # the kubelet swaps it atomically, so a cookie kept there could
+            # only ever be rotated with kubectl.
+            - name: HIDEMYEMAIL_COOKIE_FILE
+              value: /data/cookies.txt
+          # Remaining paths come from the image; the volumes below back them.
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -77,26 +83,13 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /data
-            - name: cookie
-              mountPath: /etc/hidemyemail
-              readOnly: true
             - name: tmp
               mountPath: /tmp
       volumes:
+        # Holds the database, the generated addresses, and the iCloud session.
         - name: data
           persistentVolumeClaim:
             claimName: hidemyemail-data
-        # Only the cookie is projected. The token reaches the process through
-        # the environment, so it never lands on a filesystem. Replacing the
-        # Secret refreshes this file in place — the server reads it per request,
-        # so a rotated cookie takes effect without a restart.
-        - name: cookie
-          secret:
-            secretName: hidemyemail
-            defaultMode: 0440
-            items:
-              - key: cookies.txt
-                path: cookies.txt
         - name: tmp
           emptyDir:
             medium: Memory
