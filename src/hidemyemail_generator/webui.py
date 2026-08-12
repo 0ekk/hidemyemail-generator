@@ -8,6 +8,7 @@ not a multi-user service.
 
 import asyncio
 import json
+import os
 import secrets
 import sys
 from dataclasses import dataclass
@@ -231,6 +232,7 @@ async def get_config(request: web.Request) -> web.Response:
                 "region": settings.region,
                 "regions": sorted(HideMyEmail.REGION_CONFIG),
                 "cookie_file": settings.cookie_file,
+                "cookie_writable": cookie_dir_is_writable(settings.cookie_file),
                 "output_file": settings.output_file,
                 "db_file": settings.db_file,
                 "inbox_config_file": settings.config_file,
@@ -249,6 +251,104 @@ async def get_account(request: web.Request) -> web.Response:
 
     settings = _settings(request)
     return _result(await _whoami(settings.cookie_file, _region(request)))
+
+
+COOKIE_SOURCE = "pasted into the web UI"
+
+
+def cookie_dir_is_writable(cookie_file: str) -> bool:
+    """Whether the UI can replace the cookie, or the file is read-only.
+
+    A Kubernetes Secret mount is read-only, so the session has to be rotated
+    through the cluster instead. The UI needs to know that before offering a
+    form that cannot work.
+    """
+    path = Path(cookie_file)
+    target = path.parent if path.parent.as_posix() else Path(".")
+    if path.exists():
+        return os.access(path, os.W_OK) and os.access(target, os.W_OK)
+    return target.is_dir() and os.access(target, os.W_OK)
+
+
+@routes.post("/api/cookie")
+async def post_cookie(request: web.Request) -> web.Response:
+    """Replaces the saved iCloud session with a pasted one.
+
+    The new cookie is staged beside the real file and validated against iCloud
+    before it is allowed to replace it, so a bad paste cannot take a working
+    session away. Nothing here echoes the cookie back or logs it.
+    """
+    from hidemyemail_generator.main import (
+        account_summary,
+        fetch_account_info_from_cookie,
+        load_cookie_context,
+        write_captured_cookie,
+    )
+
+    settings = _settings(request)
+    data = await _body(request)
+    text = _text(data, "text", required=True)
+    region = _region(request, data)
+
+    path = Path(settings.cookie_file)
+    staging = path.with_name(f"{path.name}.new")
+
+    def stage() -> tuple[str, str]:
+        staging.write_text(text, encoding="utf-8")
+        staging.chmod(0o600)
+        return load_cookie_context(str(staging), region)
+
+    def discard() -> None:
+        # On a read-only mount even unlinking a file that was never created
+        # raises EROFS, which missing_ok does not cover. Cleanup must never be
+        # the error that reaches the caller.
+        try:
+            staging.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+    try:
+        cookie, maildomain_host = await asyncio.to_thread(stage)
+    except OSError as e:
+        await asyncio.to_thread(discard)
+        return _failure(
+            f'Cannot write "{path}": {e.strerror or e}. '
+            "The cookie file is not writable from here — a read-only mount has "
+            "to be replaced wherever it comes from.",
+            status=409,
+        )
+
+    try:
+        if not cookie:
+            raise RequestError(
+                "No iCloud cookie found in that text. Paste the Header String, "
+                "or the whole Copy as cURL command."
+            )
+
+        account = await fetch_account_info_from_cookie(cookie, region, maildomain_host)
+        if "error" in account:
+            return _failure(account["error"], status=400)
+
+        def commit() -> None:
+            write_captured_cookie(
+                str(path),
+                cookie,
+                region,
+                COOKIE_SOURCE,
+                account.get("detectedMaildomainHost") or maildomain_host,
+            )
+            path.chmod(0o600)
+
+        try:
+            await asyncio.to_thread(commit)
+        except OSError as e:
+            return _failure(f'Cannot write "{path}": {e.strerror or e}.', status=409)
+    finally:
+        await asyncio.to_thread(discard)
+
+    # Every client builds its own HideMyEmail per request, so the next call
+    # already uses this session. Nothing needs restarting.
+    return _json({"ok": True, "account": account_summary(account), "error": None})
 
 
 @routes.get("/api/quota")

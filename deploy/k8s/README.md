@@ -77,8 +77,12 @@ uncomment it in `kustomization.yaml`.
 
 ## Rotating the cookie
 
-iCloud sessions expire. Replacing the Secret is enough; the file updates in
-place and the server reads it per request, so no restart is needed:
+iCloud sessions expire. With these manifests the cookie is a Secret mounted
+read-only, so the **Update cookie** button in the UI is disabled and reports
+that — the session is replaced through the cluster instead.
+
+Replacing the Secret is enough; the file updates in place and the server reads
+it per request, so no restart is needed:
 
 ```bash
 kubectl -n hidemyemail create secret generic hidemyemail \
@@ -89,7 +93,23 @@ kubectl -n hidemyemail create secret generic hidemyemail \
 
 The kubelet refreshes mounted Secrets within about a minute. Check the result on
 the Overview panel, or with `kubectl -n hidemyemail exec deploy/hidemyemail --
-hidemyemail whoami`.
+hidemyemail whoami --cookie-file /etc/hidemyemail/cookies.txt`.
+
+### Letting the UI manage the session instead
+
+To paste new sessions straight into the browser, move the cookie onto the
+volume, where the server can write it:
+
+```yaml
+# deployment.yaml, in the container's env
+- name: HIDEMYEMAIL_COOKIE_FILE
+  value: /data/cookies.txt
+```
+
+The Secret then only carries the token, and the first session is pasted through
+the UI rather than created with `kubectl`. That trades declarative, auditable
+credentials for a session that whoever holds the token can replace — pick the
+one that matches how you run the cluster.
 
 ## What the manifests assume
 

@@ -1,6 +1,7 @@
+import base64
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from aiohttp.test_utils import AioHTTPTestCase
 
@@ -240,6 +241,119 @@ class AddressTests(WebUITestCase):
         self.assertEqual(status, 200)
         self.assertEqual(payload["count"], 1)
         self.assertEqual(self.stored("example@icloud.com")["label"], "Example")
+
+
+VALID_ACCOUNT = {
+    "dsInfo": {
+        "appleId": "person@example.com",
+        "fullName": "A Person",
+        "dsid": 12345,
+        "isHideMyEmailFeatureAvailable": True,
+    },
+    "userPartition": 68,
+    "detectedMaildomainHost": "p68-maildomainws.icloud.com",
+}
+PASTED_COOKIE = (
+    'curl "https://p68-maildomainws.icloud.com/v1/hme/list" '
+    '-b "X-APPLE-WEBAUTH-USER=pasted-session; X-APPLE-WEBAUTH-TOKEN=abc"'
+)
+
+
+class CookieUpdateTests(WebUITestCase):
+    """Pasting a session has to replace the live one only once iCloud accepts
+    it, and must never hand the cookie back to the browser."""
+
+    def validating(self, account):
+        return patch(
+            "hidemyemail_generator.main.fetch_account_info_from_cookie",
+            new=AsyncMock(return_value=account),
+        )
+
+    async def test_a_validated_paste_replaces_the_session(self):
+        self.cookie_file.write_text("old-cookie", encoding="utf-8")
+        with self.validating(dict(VALID_ACCOUNT)) as validate:
+            status, payload = await self.post_json(
+                "/api/cookie", {"text": PASTED_COOKIE}
+            )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["account"]["apple_id"], "person@example.com")
+        # The cookie iCloud was asked about is the one that was pasted.
+        self.assertIn("pasted-session", validate.await_args.args[0])
+
+        stored = self.cookie_file.read_text()
+        self.assertIn("HIDEMYEMAIL_COOKIE_BASE64=", stored)
+        self.assertIn(
+            "pasted-session",
+            base64.b64decode(
+                stored.split("HIDEMYEMAIL_COOKIE_BASE64=")[1].strip()
+            ).decode(),
+        )
+        # The partition iCloud reported has to survive into the saved file.
+        self.assertIn("p68-maildomainws.icloud.com", stored)
+
+    async def test_the_response_never_echoes_the_cookie(self):
+        with self.validating(dict(VALID_ACCOUNT)):
+            _, payload = await self.post_json("/api/cookie", {"text": PASTED_COOKIE})
+        self.assertNotIn("pasted-session", str(payload))
+
+    async def test_the_new_session_is_used_by_the_next_request(self):
+        with self.validating(dict(VALID_ACCOUNT)):
+            await self.post_json("/api/cookie", {"text": PASTED_COOKIE})
+        # No restart: the next iCloud call builds a client from the saved file.
+        await self.get_json("/api/icloud/addresses")
+        self.assertTrue(self.transport.calls)
+
+    async def test_a_rejected_paste_leaves_the_old_session_in_place(self):
+        self.cookie_file.write_text("old-cookie", encoding="utf-8")
+        with self.validating({"error": "Failed to validate cookie: expired"}):
+            status, payload = await self.post_json(
+                "/api/cookie", {"text": PASTED_COOKIE}
+            )
+
+        self.assertEqual(status, 400)
+        self.assertIn("expired", payload["error"]["message"])
+        self.assertEqual(self.cookie_file.read_text(), "old-cookie")
+        self.assertFalse(self.cookie_file.with_name("cookies.txt.new").exists())
+
+    async def test_text_without_a_cookie_is_rejected_before_icloud(self):
+        # "//" is the comment marker the cookie file understands, so text made
+        # only of comments parses to an empty cookie.
+        self.cookie_file.write_text("old-cookie", encoding="utf-8")
+        with self.validating(dict(VALID_ACCOUNT)) as validate:
+            status, payload = await self.post_json(
+                "/api/cookie", {"text": "// pasted the wrong thing"}
+            )
+        self.assertEqual(status, 400)
+        self.assertIn("No iCloud cookie found", payload["error"]["message"])
+        validate.assert_not_awaited()
+        self.assertEqual(self.cookie_file.read_text(), "old-cookie")
+
+    async def test_empty_text_is_rejected(self):
+        status, payload = await self.post_json("/api/cookie", {"text": "   "})
+        self.assertEqual(status, 400)
+        self.assertIn("text", payload["error"]["message"])
+
+    async def test_an_unwritable_cookie_file_reports_why(self):
+        # The branch a read-only Kubernetes Secret mount takes. Permission bits
+        # cannot express that here because the suite may run as root, so this
+        # uses a directory that does not exist: both raise OSError on write.
+        unwritable = self.tmp / "missing" / "cookies.txt"
+        self.app[webui.SETTINGS].cookie_file = str(unwritable)
+
+        status, payload = await self.post_json("/api/cookie", {"text": PASTED_COOKIE})
+        self.assertEqual(status, 409)
+        self.assertIn("not writable", payload["error"]["message"])
+        self.assertIn(str(unwritable), payload["error"]["message"])
+        self.assertFalse(unwritable.exists())
+
+    async def test_config_reports_whether_the_cookie_can_be_replaced(self):
+        _, payload = await self.get_json("/api/config")
+        self.assertTrue(payload["config"]["cookie_writable"])
+
+        self.app[webui.SETTINGS].cookie_file = str(self.tmp / "missing" / "cookies.txt")
+        _, payload = await self.get_json("/api/config")
+        self.assertFalse(payload["config"]["cookie_writable"])
 
 
 class InboxAndBatchTests(WebUITestCase):

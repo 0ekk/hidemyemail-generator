@@ -288,7 +288,7 @@ It serves <http://127.0.0.1:8765/> with six panels:
 
 | Panel | What it does |
 | --- | --- |
-| Overview | Cookie account check, rate-limit estimate, local database counts. |
+| Overview | Cookie account check, pasting a fresh iCloud session, rate-limit estimate, local database counts. |
 | Generate | Generate and reserve addresses with a label, count, and optional batch. |
 | iCloud addresses | List live addresses, deactivate or reactivate them, edit label and note. |
 | Local addresses | Filter the local database, mark `unused`/`used`/`trash`, sync from iCloud, export CSV. |
@@ -312,6 +312,11 @@ Options:
 
 To run it in Kubernetes, see [`deploy/k8s/README.md`](deploy/k8s/README.md);
 the container image is `ghcr.io/0ekk/hidemyemail-generator`.
+
+The Overview panel can replace the saved iCloud session: paste the Header
+String or the whole `Copy as cURL` text, and it is validated against iCloud
+before it replaces the current one. A rejected paste changes nothing. The new
+session applies to the next request, with no restart.
 
 The server binds loopback by default. Anyone who can reach it controls the
 iCloud account behind the cookie file, so keep it on `127.0.0.1` unless you

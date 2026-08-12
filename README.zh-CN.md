@@ -215,7 +215,7 @@ uv run hidemyemail webui --open
 
 | 面板 | 功能 |
 | --- | --- |
-| 概览 | 检测 Cookie 对应账号、估算剩余额度、查看本地数据库统计。 |
+| 概览 | 检测 Cookie 对应账号、粘贴更新 iCloud 会话、估算剩余额度、查看本地数据库统计。 |
 | 生成 | 按标签、数量和可选批次生成并保留地址。 |
 | iCloud 地址 | 查看线上地址，停用或启用转发，修改标签和备注。 |
 | 本地地址 | 筛选本地数据库，标记 `unused`/`used`/`trash`，从 iCloud 同步，导出 CSV。 |
@@ -239,6 +239,10 @@ uv run hidemyemail webui --open
 
 在 Kubernetes 上部署见 [`deploy/k8s/README.md`](deploy/k8s/README.md)，
 容器镜像为 `ghcr.io/0ekk/hidemyemail-generator`。
+
+在概览面板可以直接更新已保存的 iCloud 会话：粘贴 Header String 或整段
+`Copy as cURL` 内容，保存前会先向 iCloud 校验，校验不通过则不做任何改动。
+通过后下一次请求即生效，无需重启。
 
 服务默认只监听本机。凡是能访问它的人都能操作 Cookie 背后的 iCloud 账号，
 所以除非同时设置令牌并且信任所在网络，否则请保持监听 `127.0.0.1`。

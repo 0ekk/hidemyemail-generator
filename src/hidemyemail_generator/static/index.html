@@ -166,6 +166,9 @@ dialog {
   min-width: min(420px, 92vw);
 }
 dialog::backdrop { background: rgba(0,0,0,.45); }
+#cookie-dialog { min-width: min(660px, 94vw); }
+#cookie-dialog textarea { width: 100%; resize: vertical; }
+#cookie-dialog code { background: var(--panel-2); padding: 0 4px; border-radius: 4px; }
 .empty { padding: 18px; text-align: center; color: var(--muted); }
 </style>
 </head>
@@ -195,6 +198,11 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
       <div class="card">
         <h2>iCloud account / iCloud 账号</h2>
         <div id="account-body" class="muted">Loading… / 加载中…</div>
+        <div class="row" style="margin-top:12px">
+          <button id="cookie-open" class="primary small">Update cookie / 更新 Cookie</button>
+          <button id="account-recheck" class="small">Recheck / 重新检测</button>
+        </div>
+        <p id="cookie-readonly" class="small muted" hidden></p>
       </div>
       <div class="card">
         <h2>Rate-limit headroom / 剩余额度</h2>
@@ -339,6 +347,30 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 </main>
 
 <div id="toasts"></div>
+
+<dialog id="cookie-dialog">
+  <form method="dialog" id="cookie-form">
+    <h2 style="margin-top:0;font-size:15px">Update the iCloud session / 更新 iCloud 会话</h2>
+    <p class="small muted" style="margin-top:0">
+      Sign in to iCloud, open the Network tab, find a <code>maildomainws</code> or
+      <code>hme</code> request, and copy it as cURL — or paste just the Cookie
+      header string. It is checked against iCloud before replacing the current
+      session, and takes effect immediately.<br>
+      登录 iCloud，在网络面板中找到 <code>maildomainws</code> 或 <code>hme</code>
+      请求，复制为 cURL；也可以只粘贴 Cookie 请求头。保存前会先向 iCloud 校验，
+      通过后立即生效，无需重启。
+    </p>
+    <label class="field" style="margin-bottom:14px">Pasted text / 粘贴内容
+      <textarea name="text" rows="8" required spellcheck="false"
+        style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px"
+        placeholder="curl 'https://p68-maildomainws.icloud.com/...' -b 'X-APPLE-WEBAUTH-USER=...'"></textarea>
+    </label>
+    <div class="row" style="justify-content:flex-end">
+      <button value="cancel">Cancel / 取消</button>
+      <button value="save" class="primary" id="cookie-save">Validate and save / 校验并保存</button>
+    </div>
+  </form>
+</dialog>
 
 <dialog id="edit-dialog">
   <form method="dialog" id="edit-form">
@@ -518,6 +550,37 @@ async function loadCounts() {
     $("#counts-body").innerHTML = `<span class="tag err">${esc(e.message)}</span>`;
   }
 }
+
+// --- iCloud session -------------------------------------------------------
+
+$("#cookie-open").addEventListener("click", () => {
+  $("#cookie-form").text.value = "";
+  $("#cookie-dialog").showModal();
+});
+
+$("#cookie-form").addEventListener("submit", async (event) => {
+  // Cancel closes the dialog on its own; save has to stay open until iCloud
+  // has accepted the paste, or a rejected one would be lost.
+  if (event.submitter && event.submitter.value === "cancel") return;
+  event.preventDefault();
+
+  const text = $("#cookie-form").text.value.trim();
+  if (!text) {
+    toast("Paste the cookie text first / 请先粘贴 Cookie 内容", "err");
+    return;
+  }
+
+  const result = await run(event.submitter, () =>
+    api("/api/cookie", { body: { text, region: state.region } })
+  );
+  if (result) {
+    toast(`Session updated: ${result.account.apple_id} / 会话已更新`, "ok");
+    $("#cookie-form").reset();
+    $("#cookie-dialog").close();
+    loadAccount();
+    loadQuota();
+  }
+});
 
 // --- Generate -------------------------------------------------------------
 
@@ -982,6 +1045,7 @@ document.querySelectorAll("nav button").forEach((button) => {
 });
 
 $("#refresh-account").addEventListener("click", (event) => run(event.target, loadAccount));
+$("#account-recheck").addEventListener("click", (event) => run(event.target, loadAccount));
 $("#icloud-load").addEventListener("click", (event) => loadICloudAddresses(event.target));
 $("#local-load").addEventListener("click", (event) => loadLocalAddresses(event.target));
 $("#msg-load").addEventListener("click", (event) => loadMessages(event.target));
@@ -1004,6 +1068,15 @@ async function boot() {
     $("#local-state").innerHTML =
       '<option value="">All / 全部</option>' +
       config.address_states.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("");
+    if (!config.cookie_writable) {
+      // A read-only cookie file (a Kubernetes Secret mount, for example) cannot
+      // be replaced from here; say so instead of failing on save.
+      $("#cookie-open").disabled = true;
+      $("#cookie-readonly").hidden = false;
+      $("#cookie-readonly").textContent =
+        `${config.cookie_file} is read-only, so the session must be replaced where it comes from. / ` +
+        "Cookie 文件只读，请在其来源处更新会话。";
+    }
     $("#files-body").innerHTML = `
       <dt>Cookie</dt><dd class="mono">${esc(config.cookie_file)}</dd>
       <dt>Output / 输出</dt><dd class="mono">${esc(config.output_file)}</dd>

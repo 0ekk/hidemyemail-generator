@@ -14,6 +14,7 @@ exports/
 cookie.txt
 cookies.txt
 cookies.txt.bak
+cookies.txt.new
 icloud_cookies.txt
 **/.DS_Store
 *.spec
