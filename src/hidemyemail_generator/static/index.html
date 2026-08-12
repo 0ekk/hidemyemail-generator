@@ -292,7 +292,8 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
         </label>
         <button id="local-load" class="primary">Load</button>
         <button id="local-sync">Sync from iCloud</button>
-        <button id="local-export">Export CSV</button>
+        <button id="local-export-addresses">Download addresses.csv</button>
+        <button id="local-export-messages">Download messages.csv</button>
       </div>
     </div>
     <div class="card scroll" id="local-table"><div class="empty">Nothing loaded yet</div></div>
@@ -466,6 +467,47 @@ async function api(path, options = {}) {
     throw error;
   }
   return payload;
+}
+
+/** Reads the file name the server suggested, falling back to the last path part. */
+function attachmentName(disposition, path) {
+  const match = /filename="([^"]+)"/.exec(disposition || "");
+  return match ? match[1] : path.split("/").pop();
+}
+
+/**
+ * Downloads a file through the same token gate as the JSON API.
+ *
+ * The token travels in a header rather than the URL, so the fetched bytes are
+ * handed to the browser as a blob instead of being linked to directly.
+ */
+async function download(path) {
+  const response = await fetch(path, { headers: authHeaders() });
+  if (response.status === 401) {
+    openGate(state.token ? "That token was not accepted." : "");
+    const error = new Error("An access token is required");
+    error.unauthorized = true;
+    throw error;
+  }
+  if (!response.ok) {
+    let message = `HTTP ${response.status}`;
+    try {
+      message = (await response.json()).error?.message || message;
+    } catch {
+      // A non-JSON failure body tells us nothing the status code does not.
+    }
+    throw new Error(message);
+  }
+  const name = attachmentName(response.headers.get("Content-Disposition"), path);
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+  return name;
 }
 
 /** Runs an action with a busy button and a single place for error reporting. */
@@ -789,10 +831,12 @@ $("#local-sync").addEventListener("click", async (event) => {
   }
 });
 
-$("#local-export").addEventListener("click", async (event) => {
-  const result = await run(event.target, () => api("/api/export", { body: {} }));
-  if (result) toast(`Exported: ${Object.values(result.outputs).join(", ")}`, "ok");
-});
+for (const kind of ["addresses", "messages"]) {
+  $(`#local-export-${kind}`).addEventListener("click", async (event) => {
+    const name = await run(event.target, () => download(`/api/export/${kind}.csv`));
+    if (name) toast(`Downloaded ${name}`, "ok");
+  });
+}
 
 // --- Inbox ----------------------------------------------------------------
 
@@ -937,6 +981,7 @@ async function loadBatches(button) {
       <button class="small" data-batch="${esc(batch.id)}" data-state="running">Resume</button>
       <button class="small" data-batch="${esc(batch.id)}" data-state="stopped">Stop</button>
       <button class="small" data-batch-view="${esc(batch.id)}">Addresses</button>
+      <button class="small" data-batch-export="${esc(batch.id)}">CSV</button>
     </div>`,
   ]);
   target.innerHTML = table(
@@ -1052,6 +1097,11 @@ document.addEventListener("click", async (event) => {
         "This batch has no addresses yet"
       );
     }
+  } else if (button.dataset.batchExport) {
+    const name = await run(button, () =>
+      download(query("/api/export/addresses.csv", { batch_id: button.dataset.batchExport }))
+    );
+    if (name) toast(`Downloaded ${name}`, "ok");
   } else if (button.dataset.edit) {
     openEditor(button.dataset.edit, button.dataset.label || "", button.dataset.note || "");
   }

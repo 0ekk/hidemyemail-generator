@@ -218,9 +218,9 @@ uv run hidemyemail webui --open
 | 概览 | 检测 Cookie 对应账号、粘贴更新 iCloud 会话、估算剩余额度、查看本地数据库统计。 |
 | 生成 | 按标签、数量和可选批次生成并保留地址。 |
 | iCloud 地址 | 查看线上地址，停用或启用转发，修改标签和备注。 |
-| 本地地址 | 筛选本地数据库，标记 `unused`/`used`/`trash`，从 iCloud 同步，导出 CSV。 |
+| 本地地址 | 筛选本地数据库，标记 `unused`/`used`/`trash`，从 iCloud 同步，直接下载 `addresses.csv` 和 `messages.csv`。 |
 | 收件台 | 配置 IMAP、同步邮件、查看提取出的验证码、标记已读。 |
-| 批次 | 创建、暂停、恢复、停止和查看批次。 |
+| 批次 | 创建、暂停、恢复、停止和查看批次，并可下载单个批次的地址 CSV。 |
 
 参数：
 

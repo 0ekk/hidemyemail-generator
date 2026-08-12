@@ -11,6 +11,7 @@ import json
 import os
 import secrets
 import sys
+import tempfile
 from dataclasses import dataclass
 from ipaddress import ip_address
 from pathlib import Path
@@ -764,6 +765,46 @@ async def post_export(request: web.Request) -> web.Response:
             "outputs": {name: str(path) for name, path in outputs.items()},
             "error": None,
         }
+    )
+
+
+EXPORT_KINDS = ("addresses", "messages")
+
+
+def _export_bytes(
+    db_file: str, kind: str, batch_id: Optional[str]
+) -> tuple[str, bytes]:
+    """Renders one export in memory, through the same writer the CLI uses.
+
+    Writing into a throwaway directory instead of querying the database here
+    keeps the download byte-identical to the exported file, BOM included, and
+    leaves `export_csv_files` as the single definition of what a CSV contains.
+    """
+    with tempfile.TemporaryDirectory() as workdir:
+        path = export_csv_files(db_file, workdir, batch_id)[kind]
+        return path.name, path.read_bytes()
+
+
+@routes.get("/api/export/{kind}")
+async def get_export_file(request: web.Request) -> web.Response:
+    """Serves one CSV as a download, so the browser never needs server paths."""
+    kind = request.match_info["kind"].removesuffix(".csv")
+    if kind not in EXPORT_KINDS:
+        raise RequestError(f'Unsupported export "{kind}"')
+    batch_id = _text(dict(request.query), "batch_id")
+    # The batch id reaches a filename inside `export_csv_files`; anything but a
+    # plain identifier could climb out of the directory or break the header.
+    if batch_id and not batch_id.replace("-", "").replace("_", "").isalnum():
+        raise RequestError('"batch_id" must be alphanumeric')
+
+    name, body = await asyncio.to_thread(
+        _export_bytes, _settings(request).db_file, kind, batch_id
+    )
+    return web.Response(
+        body=body,
+        content_type="text/csv",
+        charset="utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{name}"'},
     )
 
 

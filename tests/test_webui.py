@@ -426,6 +426,55 @@ class InboxAndBatchTests(WebUITestCase):
         for path in payload["outputs"].values():
             self.assertTrue(Path(path).exists())
 
+    async def test_export_download_serves_csv_as_an_attachment(self):
+        self.store("kept@icloud.com")
+        response = await self.client.get("/api/export/addresses.csv")
+        self.assertEqual(response.status, 200)
+        self.assertIn("text/csv", response.headers["Content-Type"])
+        self.assertEqual(
+            response.headers["Content-Disposition"],
+            'attachment; filename="addresses.csv"',
+        )
+        body = await response.text()
+        self.assertIn("kept@icloud.com", body)
+
+    async def test_export_download_leaves_no_file_behind(self):
+        self.store("kept@icloud.com")
+        response = await self.client.get("/api/export/messages.csv")
+        self.assertEqual(response.status, 200)
+        self.assertFalse((self.tmp / "exports").exists())
+
+    async def test_export_download_can_be_limited_to_a_batch(self):
+        _, payload = await self.post_json(
+            "/api/batches", {"label": "bulk", "target": 1}
+        )
+        batch_id = payload["batch"]["id"]
+        self.store("other@icloud.com")
+        await self.post_json(
+            "/api/generate", {"label": "bulk", "count": 1, "batch_id": batch_id}
+        )
+        response = await self.client.get(
+            f"/api/export/addresses.csv?batch_id={batch_id}"
+        )
+        self.assertEqual(response.status, 200)
+        self.assertEqual(
+            response.headers["Content-Disposition"],
+            f'attachment; filename="addresses-{batch_id[:8]}.csv"',
+        )
+        body = await response.text()
+        self.assertIn("fresh@icloud.com", body)
+        self.assertNotIn("other@icloud.com", body)
+
+    async def test_export_download_rejects_an_unknown_kind(self):
+        status, payload = await self.get_json("/api/export/cookies.csv")
+        self.assertEqual(status, 400)
+        self.assertIn("Unsupported export", payload["error"]["message"])
+
+    async def test_export_download_rejects_a_hostile_batch_id(self):
+        status, payload = await self.get_json("/api/export/addresses.csv?batch_id=../x")
+        self.assertEqual(status, 400)
+        self.assertIn("alphanumeric", payload["error"]["message"])
+
 
 class AccessControlTests(WebUITestCase):
     async def test_cross_origin_writes_are_refused(self):
@@ -472,6 +521,14 @@ class TokenTests(WebUITestCase):
         self.assertTrue(payload["ok"])
         # A probe endpoint must not become a way to read anything else.
         self.assertNotIn("cookie", str(payload).lower())
+
+    async def test_csv_downloads_are_behind_the_token(self):
+        response = await self.client.get("/api/export/addresses.csv")
+        self.assertEqual(response.status, 401)
+        response = await self.client.get(
+            "/api/export/addresses.csv", headers={"X-Auth-Token": self.token}
+        )
+        self.assertEqual(response.status, 200)
 
     async def test_the_token_can_travel_in_a_header_or_the_query(self):
         response = await self.client.get(
