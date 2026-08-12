@@ -456,6 +456,16 @@ class TokenTests(WebUITestCase):
         self.assertEqual(status, 401)
         self.assertIn("token", payload["error"]["message"].lower())
 
+    async def test_the_page_is_served_so_it_can_ask_for_the_token(self):
+        # Guarding the page too would make the in-browser token prompt
+        # impossible: the user would only ever see a JSON 401.
+        response = await self.client.get("/")
+        self.assertEqual(response.status, 200)
+        self.assertIn("text/html", response.headers["Content-Type"])
+        # The page is public; the data behind it is not.
+        status, _ = await self.get_json("/api/account")
+        self.assertEqual(status, 401)
+
     async def test_health_check_stays_open_for_container_probes(self):
         status, payload = await self.get_json("/healthz")
         self.assertEqual(status, 200)

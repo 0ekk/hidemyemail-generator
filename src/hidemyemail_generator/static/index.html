@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -36,6 +36,8 @@
   }
 }
 * { box-sizing: border-box; }
+/* Class rules like .tag beat the user-agent rule for [hidden], so state it. */
+[hidden] { display: none !important; }
 body {
   margin: 0;
   background: var(--bg);
@@ -177,74 +179,73 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   <h1>HideMyEmail Generator</h1>
   <span id="account-chip" class="tag">…</span>
   <span class="spacer"></span>
-  <label class="field">iCloud region / 区域
+  <label class="field">iCloud region
     <select id="region"></select>
   </label>
-  <button id="refresh-account">Recheck cookie / 重新检测</button>
+  <button id="refresh-account">Recheck cookie</button>
 </header>
 
 <nav>
-  <button data-tab="overview" class="active">Overview / 概览</button>
-  <button data-tab="generate">Generate / 生成</button>
-  <button data-tab="icloud">iCloud addresses / iCloud 地址</button>
-  <button data-tab="local">Local addresses / 本地地址</button>
-  <button data-tab="inbox">Inbox / 收件台</button>
-  <button data-tab="batches">Batches / 批次</button>
+  <button data-tab="overview" class="active">Overview</button>
+  <button data-tab="generate">Generate</button>
+  <button data-tab="icloud">iCloud addresses</button>
+  <button data-tab="local">Local addresses</button>
+  <button data-tab="inbox">Inbox</button>
+  <button data-tab="batches">Batches</button>
 </nav>
 
 <main>
   <section class="panel active" id="panel-overview">
     <div class="grid">
       <div class="card">
-        <h2>iCloud account / iCloud 账号</h2>
-        <div id="account-body" class="muted">Loading… / 加载中…</div>
+        <h2>iCloud account</h2>
+        <div id="account-body" class="muted">Loading…</div>
         <div class="row" style="margin-top:12px">
-          <button id="cookie-open" class="primary small">Update cookie / 更新 Cookie</button>
-          <button id="account-recheck" class="small">Recheck / 重新检测</button>
+          <button id="cookie-open" class="primary small">Update cookie</button>
+          <button id="account-recheck" class="small">Recheck</button>
         </div>
         <p id="cookie-readonly" class="small muted" hidden></p>
       </div>
       <div class="card">
-        <h2>Rate-limit headroom / 剩余额度</h2>
-        <div id="quota-body" class="muted">Loading… / 加载中…</div>
+        <h2>Rate-limit headroom</h2>
+        <div id="quota-body" class="muted">Loading…</div>
       </div>
       <div class="card">
-        <h2>Local database / 本地数据库</h2>
-        <div id="counts-body" class="muted">Loading… / 加载中…</div>
+        <h2>Local database</h2>
+        <div id="counts-body" class="muted">Loading…</div>
       </div>
     </div>
     <div class="card">
-      <h2>Files / 文件</h2>
+      <h2>Files</h2>
       <dl class="kv small" id="files-body"></dl>
     </div>
   </section>
 
   <section class="panel" id="panel-generate">
     <div class="card">
-      <h2>Generate and reserve / 生成并保留</h2>
+      <h2>Generate and reserve</h2>
       <form id="generate-form" class="row">
-        <label class="field">Label / 标签
+        <label class="field">Label
           <input name="label" required placeholder="shopping">
         </label>
-        <label class="field">Count / 数量
+        <label class="field">Count
           <input name="count" type="number" min="1" max="100" value="1" style="width:90px">
         </label>
-        <label class="field">Batch / 批次
-          <select name="batch_id"><option value="">None / 无</option></select>
+        <label class="field">Batch
+          <select name="batch_id"><option value="">None</option></select>
         </label>
-        <label class="inline field"><input type="checkbox" name="save_file" checked> Append to output file / 写入输出文件</label>
-        <button class="primary" type="submit">Generate / 生成</button>
+        <label class="inline field"><input type="checkbox" name="save_file" checked> Append to output file</label>
+        <button class="primary" type="submit">Generate</button>
       </form>
       <p class="small muted">
         Apple accepts roughly five new addresses per 30 minutes. Each address is
-        generated and reserved in two calls. /
-        Apple 约每 30 分钟只接受 5 个新地址，每个地址需要两次调用。
+        generated and reserved in two calls.
       </p>
     </div>
     <div class="card" id="generate-result" hidden>
-      <h2>Result / 结果</h2>
+      <h2>Result</h2>
       <div class="row" style="margin-bottom:10px">
-        <button id="copy-generated" class="small">Copy all / 复制全部</button>
+        <button id="copy-generated" class="small">Copy all</button>
       </div>
       <div class="scroll"><table><tbody id="generated-rows"></tbody></table></div>
     </div>
@@ -252,135 +253,149 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 
   <section class="panel" id="panel-icloud">
     <div class="card">
-      <h2>Addresses on iCloud / iCloud 上的地址</h2>
+      <h2>Addresses on iCloud</h2>
       <div class="row">
-        <label class="field">Forwarding / 转发状态
+        <label class="field">Forwarding
           <select id="icloud-active">
-            <option value="true">Active / 使用中</option>
-            <option value="false">Inactive / 已停用</option>
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
           </select>
         </label>
-        <label class="field">Label search (regex) / 标签搜索（正则）
+        <label class="field">Label search (regex)
           <input id="icloud-query" placeholder="shop.*">
         </label>
-        <button id="icloud-load" class="primary">Load / 查询</button>
+        <button id="icloud-load" class="primary">Load</button>
       </div>
     </div>
-    <div class="card scroll" id="icloud-table"><div class="empty">Nothing loaded yet / 尚未查询</div></div>
+    <div class="card scroll" id="icloud-table"><div class="empty">Nothing loaded yet</div></div>
   </section>
 
   <section class="panel" id="panel-local">
     <div class="card">
-      <h2>Local address database / 本地地址库</h2>
+      <h2>Local address database</h2>
       <div class="row">
-        <label class="field">State / 状态
-          <select id="local-state"><option value="">All / 全部</option></select>
+        <label class="field">State
+          <select id="local-state"><option value="">All</option></select>
         </label>
-        <label class="field">Forwarding / 转发
+        <label class="field">Forwarding
           <select id="local-active">
-            <option value="">All / 全部</option>
-            <option value="true">On / 开</option>
-            <option value="false">Off / 关</option>
+            <option value="">All</option>
+            <option value="true">On</option>
+            <option value="false">Off</option>
           </select>
         </label>
-        <label class="field">Search / 搜索
-          <input id="local-query" placeholder="email or label / 邮箱或标签">
+        <label class="field">Search
+          <input id="local-query" placeholder="email or label">
         </label>
-        <label class="field">Limit / 条数
+        <label class="field">Limit
           <input id="local-limit" type="number" min="1" max="1000" value="100" style="width:90px">
         </label>
-        <button id="local-load" class="primary">Load / 查询</button>
-        <button id="local-sync">Sync from iCloud / 从 iCloud 同步</button>
-        <button id="local-export">Export CSV / 导出 CSV</button>
+        <button id="local-load" class="primary">Load</button>
+        <button id="local-sync">Sync from iCloud</button>
+        <button id="local-export">Export CSV</button>
       </div>
     </div>
-    <div class="card scroll" id="local-table"><div class="empty">Nothing loaded yet / 尚未查询</div></div>
+    <div class="card scroll" id="local-table"><div class="empty">Nothing loaded yet</div></div>
   </section>
 
   <section class="panel" id="panel-inbox">
     <div class="card">
-      <h2>IMAP mailbox / 收件邮箱</h2>
-      <div id="inbox-config" class="muted">Loading… / 加载中…</div>
+      <h2>IMAP mailbox</h2>
+      <div id="inbox-config" class="muted">Loading…</div>
       <form id="inbox-form" class="row" style="margin-top:12px" hidden>
-        <label class="field">Host / 主机<input name="host" required placeholder="imap.gmail.com"></label>
-        <label class="field">Port / 端口<input name="port" type="number" value="993" style="width:90px"></label>
-        <label class="field">Username / 用户名<input name="username" required></label>
-        <label class="field">Password / 密码<input name="password" type="password" required></label>
-        <label class="field">Folder / 文件夹<input name="folder" value="INBOX"></label>
+        <label class="field">Host<input name="host" required placeholder="imap.gmail.com"></label>
+        <label class="field">Port<input name="port" type="number" value="993" style="width:90px"></label>
+        <label class="field">Username<input name="username" required></label>
+        <label class="field">Password<input name="password" type="password" required></label>
+        <label class="field">Folder<input name="folder" value="INBOX"></label>
         <label class="inline field"><input type="checkbox" name="use_ssl" checked> SSL</label>
-        <button class="primary" type="submit">Save / 保存</button>
-        <button type="button" id="inbox-cancel">Cancel / 取消</button>
+        <button class="primary" type="submit">Save</button>
+        <button type="button" id="inbox-cancel">Cancel</button>
       </form>
       <p class="small muted">
         Most providers need an app password rather than the account password.
-        Credentials stay in the local config file. /
-        多数邮箱需要应用专用密码，凭据仅保存在本地配置文件中。
+        Credentials stay in the local config file.
       </p>
     </div>
     <div class="card">
-      <h2>Messages / 邮件</h2>
+      <h2>Messages</h2>
       <div class="row">
-        <label class="inline field"><input type="checkbox" id="msg-codes"> Only verification codes / 仅验证码</label>
-        <label class="inline field"><input type="checkbox" id="msg-unread"> Only unread / 仅未读</label>
-        <label class="field">Limit / 条数<input id="msg-limit" type="number" min="1" max="1000" value="50" style="width:90px"></label>
-        <button id="msg-load" class="primary">Load / 查询</button>
-        <button id="msg-sync">Sync IMAP / 同步邮件</button>
-        <button id="msg-read-all">Mark shown read / 标记已读</button>
+        <label class="inline field"><input type="checkbox" id="msg-codes"> Only verification codes</label>
+        <label class="inline field"><input type="checkbox" id="msg-unread"> Only unread</label>
+        <label class="field">Limit<input id="msg-limit" type="number" min="1" max="1000" value="50" style="width:90px"></label>
+        <button id="msg-load" class="primary">Load</button>
+        <button id="msg-sync">Sync IMAP</button>
+        <button id="msg-read-all">Mark shown read</button>
       </div>
     </div>
-    <div class="card scroll" id="msg-table"><div class="empty">Nothing loaded yet / 尚未查询</div></div>
+    <div class="card scroll" id="msg-table"><div class="empty">Nothing loaded yet</div></div>
   </section>
 
   <section class="panel" id="panel-batches">
     <div class="card">
-      <h2>Start a batch / 创建批次</h2>
+      <h2>Start a batch</h2>
       <form id="batch-form" class="row">
-        <label class="field">Label / 标签<input name="label" required></label>
-        <label class="field">Target / 目标数量<input name="target" type="number" min="1" value="10" style="width:110px"></label>
-        <label class="field">Interval (min) / 间隔（分钟）<input name="interval_minutes" type="number" min="0" placeholder="30" style="width:130px"></label>
-        <button class="primary" type="submit">Create / 创建</button>
-        <button type="button" id="batch-load">Refresh / 刷新</button>
+        <label class="field">Label<input name="label" required></label>
+        <label class="field">Target<input name="target" type="number" min="1" value="10" style="width:110px"></label>
+        <label class="field">Interval (min)<input name="interval_minutes" type="number" min="0" placeholder="30" style="width:130px"></label>
+        <button class="primary" type="submit">Create</button>
+        <button type="button" id="batch-load">Refresh</button>
       </form>
     </div>
-    <div class="card scroll" id="batch-table"><div class="empty">Nothing loaded yet / 尚未查询</div></div>
+    <div class="card scroll" id="batch-table"><div class="empty">Nothing loaded yet</div></div>
   </section>
 </main>
 
 <div id="toasts"></div>
 
+<dialog id="gate">
+  <form id="gate-form">
+    <h2 style="margin-top:0;font-size:15px">Access token required</h2>
+    <p class="small muted" style="margin-top:0">
+      This server was started with a token. Paste it to continue; it is kept for
+      this browser tab only.
+    </p>
+    <p id="gate-message" class="tag err" hidden></p>
+    <label class="field" style="margin:12px 0 16px">Token
+      <input name="token" type="password" autocomplete="off" spellcheck="false" required>
+    </label>
+    <div class="row" style="justify-content:space-between">
+      <button type="button" id="gate-forget" class="small">Clear</button>
+      <button class="primary" type="submit">Continue</button>
+    </div>
+  </form>
+</dialog>
+
 <dialog id="cookie-dialog">
   <form method="dialog" id="cookie-form">
-    <h2 style="margin-top:0;font-size:15px">Update the iCloud session / 更新 iCloud 会话</h2>
+    <h2 style="margin-top:0;font-size:15px">Update the iCloud session</h2>
     <p class="small muted" style="margin-top:0">
       Sign in to iCloud, open the Network tab, find a <code>maildomainws</code> or
       <code>hme</code> request, and copy it as cURL — or paste just the Cookie
       header string. It is checked against iCloud before replacing the current
-      session, and takes effect immediately.<br>
-      登录 iCloud，在网络面板中找到 <code>maildomainws</code> 或 <code>hme</code>
-      请求，复制为 cURL；也可以只粘贴 Cookie 请求头。保存前会先向 iCloud 校验，
-      通过后立即生效，无需重启。
+      session, and takes effect immediately.
     </p>
-    <label class="field" style="margin-bottom:14px">Pasted text / 粘贴内容
+    <label class="field" style="margin-bottom:14px">Pasted text
       <textarea name="text" rows="8" required spellcheck="false"
         style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px"
         placeholder="curl 'https://p68-maildomainws.icloud.com/...' -b 'X-APPLE-WEBAUTH-USER=...'"></textarea>
     </label>
     <div class="row" style="justify-content:flex-end">
-      <button value="cancel">Cancel / 取消</button>
-      <button value="save" class="primary" id="cookie-save">Validate and save / 校验并保存</button>
+      <button value="cancel" formnovalidate>Cancel</button>
+      <button value="save" class="primary" id="cookie-save">Validate and save</button>
     </div>
   </form>
 </dialog>
 
 <dialog id="edit-dialog">
   <form method="dialog" id="edit-form">
-    <h2 style="margin-top:0;font-size:15px">Edit address / 编辑地址</h2>
+    <h2 style="margin-top:0;font-size:15px">Edit address</h2>
     <p class="mono small" id="edit-email"></p>
-    <label class="field" style="margin-bottom:10px">Label / 标签<input name="label"></label>
-    <label class="field" style="margin-bottom:16px">Note / 备注<input name="note"></label>
+    <label class="field" style="margin-bottom:10px">Label<input name="label"></label>
+    <label class="field" style="margin-bottom:16px">Note<input name="note"></label>
     <div class="row" style="justify-content:flex-end">
-      <button value="cancel">Cancel / 取消</button>
-      <button value="save" class="primary">Save / 保存</button>
+      <button value="cancel" formnovalidate>Cancel</button>
+      <button value="save" class="primary">Save</button>
     </div>
   </form>
 </dialog>
@@ -390,12 +405,20 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 
 const params = new URLSearchParams(location.search);
 if (params.has("token")) {
+  // Accepted from the URL for convenience, then removed from it so it does not
+  // sit in the address bar or in history.
   sessionStorage.setItem("hme-token", params.get("token"));
   history.replaceState(null, "", location.pathname);
 }
-const TOKEN = sessionStorage.getItem("hme-token") || "";
 
-const state = { config: null, region: "global", generated: [], messages: [], batches: [] };
+const state = {
+  config: null,
+  region: "global",
+  token: sessionStorage.getItem("hme-token") || "",
+  generated: [],
+  messages: [],
+  batches: [],
+};
 
 const $ = (selector) => document.querySelector(selector);
 const esc = (value) =>
@@ -411,12 +434,16 @@ function toast(message, kind = "") {
   setTimeout(() => node.remove(), kind === "err" ? 9000 : 4500);
 }
 
-async function api(path, options = {}) {
+function authHeaders() {
   const headers = { "Content-Type": "application/json" };
-  if (TOKEN) headers["X-Auth-Token"] = TOKEN;
+  if (state.token) headers["X-Auth-Token"] = state.token;
+  return headers;
+}
+
+async function api(path, options = {}) {
   const response = await fetch(path, {
     method: options.body ? "POST" : "GET",
-    headers,
+    headers: authHeaders(),
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
   let payload = {};
@@ -424,6 +451,14 @@ async function api(path, options = {}) {
     payload = await response.json();
   } catch {
     throw new Error(`HTTP ${response.status}`);
+  }
+  if (response.status === 401) {
+    // The server wants a token and has not got a valid one. Ask for it rather
+    // than reporting a failure the user cannot act on.
+    openGate(state.token ? "That token was not accepted." : "");
+    const error = new Error("An access token is required");
+    error.unauthorized = true;
+    throw error;
   }
   if (!payload.ok) {
     const error = new Error(payload.error?.message || `HTTP ${response.status}`);
@@ -470,23 +505,23 @@ function localTime(value) {
 }
 
 function forwardingTag(isActive) {
-  if (isActive === null || isActive === undefined) return '<span class="tag">unknown / 未知</span>';
+  if (isActive === null || isActive === undefined) return '<span class="tag">unknown</span>';
   return isActive
-    ? '<span class="tag ok">on / 开</span>'
-    : '<span class="tag off">off / 关</span>';
+    ? '<span class="tag ok">on</span>'
+    : '<span class="tag off">off</span>';
 }
 
 function copyButton(value) {
-  return `<button class="small" data-copy="${esc(value)}">Copy / 复制</button>`;
+  return `<button class="small" data-copy="${esc(value)}">Copy</button>`;
 }
 
 async function copyText(value) {
   try {
     await navigator.clipboard.writeText(value);
-    toast("Copied / 已复制", "ok");
+    toast("Copied", "ok");
   } catch {
     // Clipboard access needs a secure context; a prompt still lets the user copy.
-    window.prompt("Copy / 复制", value);
+    window.prompt("Copy", value);
   }
 }
 
@@ -501,22 +536,21 @@ async function loadAccount() {
     chip.textContent = account.apple_id;
     body.innerHTML = `<dl class="kv">
       <dt>Apple ID</dt><dd class="mono">${esc(account.apple_id)}</dd>
-      <dt>Name / 名称</dt><dd>${esc(account.name)}</dd>
+      <dt>Name</dt><dd>${esc(account.name)}</dd>
       <dt>DSID</dt><dd class="mono">${esc(account.dsid || "—")}</dd>
       <dt>Hide My Email</dt><dd>${
         account.hide_my_email_available
-          ? '<span class="tag ok">available / 可用</span>'
-          : '<span class="tag warn">unavailable / 不可用</span>'
+          ? '<span class="tag ok">available</span>'
+          : '<span class="tag warn">unavailable</span>'
       }</dd>
-      <dt>Partition / 分区</dt><dd>${esc(account.user_partition ?? "—")}</dd>
+      <dt>Partition</dt><dd>${esc(account.user_partition ?? "—")}</dd>
       <dt>Maildomain</dt><dd class="mono small">${esc(account.maildomain_host || "default")}</dd>
     </dl>`;
   } catch (e) {
     chip.className = "tag err";
-    chip.textContent = "no session / 未登录";
+    chip.textContent = "no session";
     body.innerHTML = `<p class="tag err">${esc(e.message)}</p>
-      <p class="small muted">Refresh the cookie file, then recheck. /
-      请更新 Cookie 文件后重新检测。</p>`;
+      <p class="small muted">Refresh the cookie file, then recheck.</p>`;
   }
 }
 
@@ -524,11 +558,9 @@ async function loadQuota() {
   try {
     const quota = await api("/api/quota");
     $("#quota-body").innerHTML = `<div class="big">${quota.remaining} / ${quota.limit}</div>
-      <p class="small muted">Used ${quota.used} in the last ${Math.round(quota.window_seconds / 60)} min
-      / 最近 ${Math.round(quota.window_seconds / 60)} 分钟已用 ${quota.used} 个</p>
-      <p class="small muted">Resets around / 预计恢复: ${esc(localTime(quota.resets_at) || "—")}</p>
-      <p class="small muted">Estimated from the local database; Apple does not publish the real quota.
-      / 基于本地数据估算，Apple 未公开真实额度。</p>`;
+      <p class="small muted">Used ${quota.used} in the last ${Math.round(quota.window_seconds / 60)} min</p>
+      <p class="small muted">Resets around"—")}</p>
+      <p class="small muted">Estimated from the local database; Apple does not publish the real quota.</p>`;
   } catch (e) {
     $("#quota-body").innerHTML = `<span class="tag err">${esc(e.message)}</span>`;
   }
@@ -539,17 +571,59 @@ async function loadCounts() {
     const inbox = await api("/api/inbox");
     const counts = inbox.counts;
     $("#counts-body").innerHTML = `<dl class="kv">
-      <dt>Addresses / 地址</dt><dd>${counts.addresses}</dd>
+      <dt>Addresses</dt><dd>${counts.addresses}</dd>
       <dt>unused / used / trash</dt><dd>${counts.states.unused} / ${counts.states.used} / ${counts.states.trash}</dd>
-      <dt>Deactivated / 已停用</dt><dd>${counts.deactivated}</dd>
-      <dt>Messages / 邮件</dt><dd>${counts.messages}</dd>
-      <dt>Unread / 未读</dt><dd>${counts.unread}</dd>
-      <dt>Codes / 验证码</dt><dd>${counts.codes}</dd>
+      <dt>Deactivated</dt><dd>${counts.deactivated}</dd>
+      <dt>Messages</dt><dd>${counts.messages}</dd>
+      <dt>Unread</dt><dd>${counts.unread}</dd>
+      <dt>Codes</dt><dd>${counts.codes}</dd>
     </dl>`;
   } catch (e) {
     $("#counts-body").innerHTML = `<span class="tag err">${esc(e.message)}</span>`;
   }
 }
+
+// --- Access token ---------------------------------------------------------
+
+function openGate(message) {
+  const gate = $("#gate");
+  $("#gate-message").textContent = message || "";
+  $("#gate-message").hidden = !message;
+  if (!gate.open) {
+    $("#gate-form").token.value = "";
+    gate.showModal();
+    $("#gate-form").token.focus();
+  }
+}
+
+$("#gate-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const value = $("#gate-form").token.value.trim();
+  if (!value) return;
+
+  state.token = value;
+  try {
+    // Cheapest authenticated call there is: if it passes, the token is good.
+    await api("/api/config");
+  } catch (e) {
+    if (e.unauthorized) return; // openGate already reported it
+    toast(e.message, "err");
+    return;
+  }
+  sessionStorage.setItem("hme-token", value);
+  $("#gate").close();
+  boot();
+});
+
+// Escape would dismiss the gate and leave an app that can only show errors.
+$("#gate").addEventListener("cancel", (event) => event.preventDefault());
+
+$("#gate-forget").addEventListener("click", () => {
+  sessionStorage.removeItem("hme-token");
+  state.token = "";
+  $("#gate-form").token.value = "";
+  $("#gate-form").token.focus();
+});
 
 // --- iCloud session -------------------------------------------------------
 
@@ -566,7 +640,7 @@ $("#cookie-form").addEventListener("submit", async (event) => {
 
   const text = $("#cookie-form").text.value.trim();
   if (!text) {
-    toast("Paste the cookie text first / 请先粘贴 Cookie 内容", "err");
+    toast("Paste the cookie text first", "err");
     return;
   }
 
@@ -574,7 +648,7 @@ $("#cookie-form").addEventListener("submit", async (event) => {
     api("/api/cookie", { body: { text, region: state.region } })
   );
   if (result) {
-    toast(`Session updated: ${result.account.apple_id} / 会话已更新`, "ok");
+    toast(`Session updated: ${result.account.apple_id}`, "ok");
     $("#cookie-form").reset();
     $("#cookie-dialog").close();
     loadAccount();
@@ -590,14 +664,12 @@ $("#generate-form").addEventListener("submit", async (event) => {
   const data = new FormData(form);
   const submit = form.querySelector("button[type=submit]");
   const previous = submit.textContent;
-  submit.textContent = "Working… / 处理中…";
+  submit.textContent = "Working…";
 
   await run(submit, async () => {
     const response = await fetch("/api/generate", {
       method: "POST",
-      headers: TOKEN
-        ? { "Content-Type": "application/json", "X-Auth-Token": TOKEN }
-        : { "Content-Type": "application/json" },
+      headers: authHeaders(),
       body: JSON.stringify({
         label: data.get("label"),
         count: Number(data.get("count") || 1),
@@ -610,8 +682,8 @@ $("#generate-form").addEventListener("submit", async (event) => {
     // A partial run still reserved real addresses; show them alongside the error.
     state.generated = payload.emails || [];
     renderGenerated();
-    if (!payload.ok) throw new Error(payload.error?.message || "Generation failed / 生成失败");
-    toast(`Reserved ${state.generated.length} address(es) / 已保留 ${state.generated.length} 个`, "ok");
+    if (!payload.ok) throw new Error(payload.error?.message || "Generation failed");
+    toast(`Reserved ${state.generated.length} address(es)`, "ok");
     loadQuota();
     return payload;
   });
@@ -632,7 +704,7 @@ $("#copy-generated").addEventListener("click", () => copyText(state.generated.jo
 
 async function loadICloudAddresses(button) {
   const target = $("#icloud-table");
-  target.innerHTML = '<div class="empty">Loading… / 加载中…</div>';
+  target.innerHTML = '<div class="empty">Loading…</div>';
   const result = await run(button, () =>
     api(
       query("/api/icloud/addresses", {
@@ -643,7 +715,7 @@ async function loadICloudAddresses(button) {
     )
   );
   if (!result) {
-    target.innerHTML = '<div class="empty">Could not load / 加载失败</div>';
+    target.innerHTML = '<div class="empty">Could not load</div>';
     return;
   }
   const rows = result.addresses.map((address) => [
@@ -652,14 +724,14 @@ async function loadICloudAddresses(button) {
     esc(localTime(address.created_at)),
     forwardingTag(address.is_active),
     `<div class="actions">${copyButton(address.email)}
-      <button class="small" data-edit="${esc(address.email)}" data-label="${esc(address.label || "")}">Edit / 编辑</button>
+      <button class="small" data-edit="${esc(address.email)}" data-label="${esc(address.label || "")}">Edit</button>
       <button class="small" data-forward="${esc(address.email)}" data-active="${address.is_active ? "false" : "true"}">
-        ${address.is_active ? "Deactivate / 停用" : "Reactivate / 启用"}</button></div>`,
+        ${address.is_active ? "Deactivate" : "Reactivate"}</button></div>`,
   ]);
   target.innerHTML = table(
-    ["Label / 标签", "Address / 地址", "Created / 创建时间", "Forwarding / 转发", "Actions / 操作"],
+    ["Label", "Address", "Created", "Forwarding", "Actions"],
     rows,
-    "No matching addresses / 没有匹配的地址"
+    "No matching addresses"
   );
 }
 
@@ -667,7 +739,7 @@ async function loadICloudAddresses(button) {
 
 async function loadLocalAddresses(button) {
   const target = $("#local-table");
-  target.innerHTML = '<div class="empty">Loading… / 加载中…</div>';
+  target.innerHTML = '<div class="empty">Loading…</div>';
   const result = await run(button, () =>
     api(
       query("/api/addresses", {
@@ -679,7 +751,7 @@ async function loadLocalAddresses(button) {
     )
   );
   if (!result) {
-    target.innerHTML = '<div class="empty">Could not load / 加载失败</div>';
+    target.innerHTML = '<div class="empty">Could not load</div>';
     return;
   }
   const rows = result.addresses.map((address) => [
@@ -691,18 +763,18 @@ async function loadLocalAddresses(button) {
     esc(address.batch_id ? address.batch_id.slice(0, 8) : ""),
     esc(localTime(address.updated_at)),
     `<div class="actions">${copyButton(address.email)}
-      <button class="small" data-edit="${esc(address.email)}" data-label="${esc(address.label || "")}" data-note="${esc(address.note || "")}">Edit / 编辑</button>
-      <button class="small" data-state="${esc(address.email)}" data-value="used">Used / 已用</button>
-      <button class="small" data-state="${esc(address.email)}" data-value="unused">Unused / 未用</button>
-      <button class="small" data-state="${esc(address.email)}" data-value="trash">Trash / 弃用</button></div>`,
+      <button class="small" data-edit="${esc(address.email)}" data-label="${esc(address.label || "")}" data-note="${esc(address.note || "")}">Edit</button>
+      <button class="small" data-state="${esc(address.email)}" data-value="used">Used</button>
+      <button class="small" data-state="${esc(address.email)}" data-value="unused">Unused</button>
+      <button class="small" data-state="${esc(address.email)}" data-value="trash">Trash</button></div>`,
   ]);
   target.innerHTML = table(
     [
-      "Address / 地址", "Label / 标签", "State / 状态", "Forwarding / 转发",
-      "Source / 来源", "Batch / 批次", "Updated / 更新时间", "Actions / 操作",
+      "Address", "Label", "State", "Forwarding",
+      "Source", "Batch", "Updated", "Actions",
     ],
     rows,
-    "No addresses stored yet / 本地暂无地址"
+    "No addresses stored yet"
   );
 }
 
@@ -711,7 +783,7 @@ $("#local-sync").addEventListener("click", async (event) => {
     api("/api/icloud/sync", { body: { region: state.region } })
   );
   if (result) {
-    toast(`Synced ${result.count} address(es) / 已同步 ${result.count} 个`, "ok");
+    toast(`Synced ${result.count} address(es)`, "ok");
     loadLocalAddresses();
     loadCounts();
   }
@@ -719,7 +791,7 @@ $("#local-sync").addEventListener("click", async (event) => {
 
 $("#local-export").addEventListener("click", async (event) => {
   const result = await run(event.target, () => api("/api/export", { body: {} }));
-  if (result) toast(`Exported: ${Object.values(result.outputs).join(", ")} / 已导出`, "ok");
+  if (result) toast(`Exported: ${Object.values(result.outputs).join(", ")}`, "ok");
 });
 
 // --- Inbox ----------------------------------------------------------------
@@ -729,18 +801,18 @@ async function loadInbox() {
   try {
     const inbox = await api("/api/inbox");
     if (!inbox.configured) {
-      target.innerHTML = `<p class="tag warn">Not configured / 未配置</p>`;
+      target.innerHTML = `<p class="tag warn">Not configured</p>`;
       $("#inbox-form").hidden = false;
       $("#inbox-cancel").hidden = true;
     } else {
       const config = inbox.config;
       target.innerHTML = `<dl class="kv">
-        <dt>Host / 主机</dt><dd class="mono">${esc(config.host)}:${config.port}</dd>
-        <dt>Account / 账号</dt><dd class="mono">${esc(config.username)}</dd>
-        <dt>Folder / 文件夹</dt><dd>${esc(config.folder)}</dd>
-        <dt>SSL</dt><dd>${config.use_ssl ? "on / 开" : "off / 关"}</dd>
+        <dt>Host</dt><dd class="mono">${esc(config.host)}:${config.port}</dd>
+        <dt>Account</dt><dd class="mono">${esc(config.username)}</dd>
+        <dt>Folder</dt><dd>${esc(config.folder)}</dd>
+        <dt>SSL</dt><dd>${config.use_ssl ? "on" : "off"}</dd>
       </dl>
-      <div class="row" style="margin-top:10px"><button id="inbox-edit" class="small">Change / 修改</button></div>`;
+      <div class="row" style="margin-top:10px"><button id="inbox-edit" class="small">Change</button></div>`;
       $("#inbox-form").hidden = true;
       $("#inbox-cancel").hidden = false;
       $("#inbox-edit").addEventListener("click", () => {
@@ -776,7 +848,7 @@ $("#inbox-form").addEventListener("submit", async (event) => {
     })
   );
   if (result) {
-    toast("Inbox configuration saved / 收件台配置已保存", "ok");
+    toast("Inbox configuration saved", "ok");
     event.target.reset();
     loadInbox();
   }
@@ -787,7 +859,7 @@ $("#msg-sync").addEventListener("click", async (event) => {
     api("/api/inbox/sync", { body: { limit: Number($("#msg-limit").value || 50) } })
   );
   if (result) {
-    toast(`Synced ${result.count} new message(s) / 新增 ${result.count} 封`, "ok");
+    toast(`Synced ${result.count} new message(s)`, "ok");
     loadMessages();
     loadCounts();
   }
@@ -795,7 +867,7 @@ $("#msg-sync").addEventListener("click", async (event) => {
 
 async function loadMessages(button) {
   const target = $("#msg-table");
-  target.innerHTML = '<div class="empty">Loading… / 加载中…</div>';
+  target.innerHTML = '<div class="empty">Loading…</div>';
   const result = await run(button, () =>
     api(
       query("/api/messages", {
@@ -806,7 +878,7 @@ async function loadMessages(button) {
     )
   );
   if (!result) {
-    target.innerHTML = '<div class="empty">Could not load / 加载失败</div>';
+    target.innerHTML = '<div class="empty">Could not load</div>';
     return;
   }
   state.messages = result.messages;
@@ -818,25 +890,25 @@ async function loadMessages(button) {
     message.code
       ? `<span class="mono"><b>${esc(message.code)}</b></span> ${copyButton(message.code)}`
       : "",
-    message.is_read ? '<span class="tag off">read / 已读</span>' : '<span class="tag ok">new / 未读</span>',
-    message.is_read ? "" : `<button class="small" data-read="${message.id}">Mark read / 标记已读</button>`,
+    message.is_read ? '<span class="tag off">read</span>' : '<span class="tag ok">new</span>',
+    message.is_read ? "" : `<button class="small" data-read="${message.id}">Mark read</button>`,
   ]);
   target.innerHTML = table(
-    ["Received / 时间", "Address / 地址", "Sender / 发件人", "Subject / 标题", "Code / 验证码", "State / 状态", ""],
+    ["Received", "Address", "Sender", "Subject", "Code", "State", ""],
     rows,
-    "No messages / 暂无邮件"
+    "No messages"
   );
 }
 
 $("#msg-read-all").addEventListener("click", async (event) => {
   const ids = state.messages.filter((message) => !message.is_read).map((message) => message.id);
   if (!ids.length) {
-    toast("Nothing unread in view / 当前没有未读邮件");
+    toast("Nothing unread in view");
     return;
   }
   const result = await run(event.target, () => api("/api/messages/read", { body: { ids } }));
   if (result) {
-    toast(`Marked ${result.count} read / 已标记 ${result.count} 封`, "ok");
+    toast(`Marked ${result.count} read`, "ok");
     loadMessages();
     loadCounts();
   }
@@ -848,7 +920,7 @@ async function loadBatches(button) {
   const target = $("#batch-table");
   const result = await run(button, () => api("/api/batches"));
   if (!result) {
-    target.innerHTML = '<div class="empty">Could not load / 加载失败</div>';
+    target.innerHTML = '<div class="empty">Could not load</div>';
     return;
   }
   state.batches = result.batches;
@@ -861,16 +933,16 @@ async function loadBatches(button) {
     esc(localTime(batch.started_at)),
     esc(localTime(batch.finished_at)),
     `<div class="actions">
-      <button class="small" data-batch="${esc(batch.id)}" data-state="paused">Pause / 暂停</button>
-      <button class="small" data-batch="${esc(batch.id)}" data-state="running">Resume / 恢复</button>
-      <button class="small" data-batch="${esc(batch.id)}" data-state="stopped">Stop / 停止</button>
-      <button class="small" data-batch-view="${esc(batch.id)}">Addresses / 地址</button>
+      <button class="small" data-batch="${esc(batch.id)}" data-state="paused">Pause</button>
+      <button class="small" data-batch="${esc(batch.id)}" data-state="running">Resume</button>
+      <button class="small" data-batch="${esc(batch.id)}" data-state="stopped">Stop</button>
+      <button class="small" data-batch-view="${esc(batch.id)}">Addresses</button>
     </div>`,
   ]);
   target.innerHTML = table(
-    ["ID", "Label / 标签", "Progress / 进度", "State / 状态", "Started / 开始", "Finished / 结束", "Actions / 操作"],
+    ["ID", "Label", "Progress", "State", "Started", "Finished", "Actions"],
     rows,
-    "No batches yet / 暂无批次"
+    "No batches yet"
   );
 }
 
@@ -878,7 +950,7 @@ function renderBatchOptions() {
   const select = $("#generate-form").batch_id;
   const current = select.value;
   select.innerHTML =
-    '<option value="">None / 无</option>' +
+    '<option value="">None</option>' +
     state.batches
       .filter((batch) => batch.state === "running")
       .map(
@@ -902,7 +974,7 @@ $("#batch-form").addEventListener("submit", async (event) => {
     })
   );
   if (result) {
-    toast(`Batch ${result.batch.id.slice(0, 8)} created / 批次已创建`, "ok");
+    toast(`Batch ${result.batch.id.slice(0, 8)} created`, "ok");
     event.target.reset();
     loadBatches();
   }
@@ -927,7 +999,7 @@ document.addEventListener("click", async (event) => {
       })
     );
     if (result) {
-      toast(`${result.email} updated / 已更新`, "ok");
+      toast(`${result.email} updated`, "ok");
       loadICloudAddresses();
     }
   } else if (button.dataset.state && button.dataset.value) {
@@ -956,20 +1028,20 @@ document.addEventListener("click", async (event) => {
       })
     );
     if (result) {
-      toast(`Batch is now ${result.batch.state} / 批次状态已更新`, "ok");
+      toast(`Batch is now ${result.batch.state}`, "ok");
       loadBatches();
     }
   } else if (button.dataset.batchView) {
     switchTab("local");
     $("#local-query").value = "";
     const target = $("#local-table");
-    target.innerHTML = '<div class="empty">Loading… / 加载中…</div>';
+    target.innerHTML = '<div class="empty">Loading…</div>';
     const result = await run(null, () =>
       api(query("/api/addresses", { batch_id: button.dataset.batchView, limit: 1000 }))
     );
     if (result) {
       target.innerHTML = table(
-        ["Address / 地址", "Label / 标签", "State / 状态", "Created / 创建时间", ""],
+        ["Address", "Label", "State", "Created", ""],
         result.addresses.map((address) => [
           `<span class="mono">${esc(address.email)}</span>`,
           esc(address.label || ""),
@@ -977,7 +1049,7 @@ document.addEventListener("click", async (event) => {
           esc(localTime(address.created_at)),
           copyButton(address.email),
         ]),
-        "This batch has no addresses yet / 该批次暂无地址"
+        "This batch has no addresses yet"
       );
     }
   } else if (button.dataset.edit) {
@@ -1009,7 +1081,7 @@ $("#edit-dialog").addEventListener("close", async (event) => {
     })
   );
   if (result) {
-    toast(`${result.email} updated / 已更新`, "ok");
+    toast(`${result.email} updated`, "ok");
     if ($("#panel-icloud").classList.contains("active")) loadICloudAddresses();
     if ($("#panel-local").classList.contains("active")) loadLocalAddresses();
   }
@@ -1066,7 +1138,7 @@ async function boot() {
       .join("");
     $("#region").value = state.region;
     $("#local-state").innerHTML =
-      '<option value="">All / 全部</option>' +
+      '<option value="">All</option>' +
       config.address_states.map((s) => `<option value="${esc(s)}">${esc(s)}</option>`).join("");
     if (!config.cookie_writable) {
       // A read-only cookie file (a Kubernetes Secret mount, for example) cannot
@@ -1074,17 +1146,16 @@ async function boot() {
       $("#cookie-open").disabled = true;
       $("#cookie-readonly").hidden = false;
       $("#cookie-readonly").textContent =
-        `${config.cookie_file} is read-only, so the session must be replaced where it comes from. / ` +
-        "Cookie 文件只读，请在其来源处更新会话。";
+        `${config.cookie_file} is read-only, so the session must be replaced where it comes from.`;
     }
     $("#files-body").innerHTML = `
       <dt>Cookie</dt><dd class="mono">${esc(config.cookie_file)}</dd>
-      <dt>Output / 输出</dt><dd class="mono">${esc(config.output_file)}</dd>
-      <dt>Database / 数据库</dt><dd class="mono">${esc(config.db_file)}</dd>
-      <dt>Inbox config / 收件台配置</dt><dd class="mono">${esc(config.inbox_config_file)}</dd>
-      <dt>Exports / 导出目录</dt><dd class="mono">${esc(config.export_dir)}</dd>`;
+      <dt>Output</dt><dd class="mono">${esc(config.output_file)}</dd>
+      <dt>Database</dt><dd class="mono">${esc(config.db_file)}</dd>
+      <dt>Inbox config</dt><dd class="mono">${esc(config.inbox_config_file)}</dd>
+      <dt>Exports</dt><dd class="mono">${esc(config.export_dir)}</dd>`;
   } catch (e) {
-    toast(`Could not load configuration: ${e.message}`, "err");
+    if (!e.unauthorized) toast(`Could not load configuration: ${e.message}`, "err");
     return;
   }
   loaders.overview();

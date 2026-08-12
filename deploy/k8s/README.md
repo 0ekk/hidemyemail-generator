@@ -65,11 +65,12 @@ TOKEN="$(kubectl -n hidemyemail get secret hidemyemail \
   -o jsonpath='{.data.webui-token}' | base64 -d)"
 
 kubectl -n hidemyemail port-forward svc/hidemyemail 8765:80
-# then open http://127.0.0.1:8765/?token=$TOKEN
+# then open http://127.0.0.1:8765/ and paste the token when the page asks
 ```
 
-The token only has to appear in the URL once — the page moves it into
-`sessionStorage` and sends it as a header afterwards.
+The page prompts for the token and keeps it for that browser tab, sending it as
+a header from then on. Appending `?token=…` to the URL also works; the page
+removes it from the address bar straight away.
 
 To publish it on a hostname instead, set the host in `ingress.yaml` and
 uncomment it in `kustomization.yaml`.

@@ -228,7 +228,7 @@ uv run hidemyemail webui --open
 | --- | --- |
 | `--host` | 监听地址，默认 `127.0.0.1`。 |
 | `--port` | 监听端口，默认 `8765`。 |
-| `--token` | 访问所需的令牌；监听地址非本机时自动生成。 |
+| `--token` | 访问所需的令牌，页面会提示输入；监听地址非本机时自动生成。 |
 | `--open` | 启动后自动打开默认浏览器。 |
 | `--cookie-file` | Cookie 文件路径，默认 `cookies.txt`。 |
 | `--output` | 生成地址追加写入的文件，默认 `emails.txt`。 |

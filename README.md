@@ -301,7 +301,7 @@ Options:
 | --- | --- |
 | `--host` | Interface to bind. Defaults to `127.0.0.1`. |
 | `--port` | Port to bind. Defaults to `8765`. |
-| `--token` | Require this token in the URL. Generated automatically when `--host` is not loopback. |
+| `--token` | Require this token. The page prompts for it; generated automatically when `--host` is not loopback. |
 | `--open` | Open the UI in the default browser after starting. |
 | `--cookie-file` | Path to the saved cookie file. Defaults to `cookies.txt`. |
 | `--output` | File generated addresses are appended to. Defaults to `emails.txt`. |

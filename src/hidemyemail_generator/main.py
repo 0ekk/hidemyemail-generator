@@ -2013,7 +2013,9 @@ def webuicommand(
     # Printed unwrapped and unhighlighted so the URL stays one copyable line.
     console.print(f"    {url}", soft_wrap=True, highlight=False)
     if token and not generated_token:
-        console.log("[dim]Append ?token=… to the URL / 访问时需在网址后加 ?token=…[/]")
+        console.log(
+            "[dim]The page will ask for the access token / 页面会要求输入访问令牌[/]"
+        )
     console.log("[dim]Press Ctrl+C to stop / 按 Ctrl+C 停止[/]")
     if open_browser:
         try:

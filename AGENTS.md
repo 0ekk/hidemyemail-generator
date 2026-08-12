@@ -79,8 +79,10 @@ Do not "fix" these; they are choices, and each is a small, reversible diff.
 
 ## Conventions to match
 
-- Bilingual English / Simplified Chinese strings in every user-facing CLI,
-  launcher, and web UI message, in the existing `English / 中文` shape.
+- Bilingual English / Simplified Chinese strings in every user-facing CLI and
+  launcher message, in the existing `English / 中文` shape. **The web UI is the
+  exception: `static/index.html` is English only, by request.** Keep new strings
+  there in English, including the server-side messages the page displays.
 - Commands and API handlers return the `{"ok", ..., "error"}` envelope that
   `write_result_json` and `bridge_error` produce, so the CLI, the macOS app
   bridge, and the web UI all read the same results.

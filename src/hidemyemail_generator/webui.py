@@ -51,6 +51,9 @@ MAX_LIMIT = 1000
 # Container probes have no token, so this one path stays open. It reports that
 # the process is serving, nothing about the account or the database.
 HEALTH_PATH = "/healthz"
+# The page itself is served without a token so it can ask for one; it is static
+# markup and script, and every value it displays comes from the guarded API.
+PUBLIC_PATHS = frozenset({"/", HEALTH_PATH})
 
 
 class RequestError(Exception):
@@ -191,7 +194,7 @@ async def auth_middleware(request: web.Request, handler):
     open could POST to this server and mutate their real iCloud addresses.
     """
     token = _settings(request).token
-    if token and request.path != HEALTH_PATH:
+    if token and request.path not in PUBLIC_PATHS:
         sent = request.headers.get("X-Auth-Token") or request.query.get("token") or ""
         if not secrets.compare_digest(sent, token):
             return _failure("Invalid or missing token", status=401)
