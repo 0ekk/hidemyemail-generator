@@ -58,6 +58,7 @@
 - [macOS 应用](#macos-应用)
 - [Android 应用](#android-应用)
 - [Windows 启动器](#windows-启动器)
+- [网页界面](#网页界面)
 - [命令行用法](#命令行用法)
 - [Cookie 管理](#cookie-管理)
 - [本地收件台和验证码](#本地收件台和验证码)
@@ -82,6 +83,7 @@
 | 原生 macOS 应用 | 批量生成、浏览并导出本地历史记录，并在遇到频率限制时自动等待。 |
 | Android 应用 | 为 Android 用户提供国际区/中国区 iCloud、地址生成和本地状态管理。 |
 | Windows 启动器 | 双击即可生成、查看和管理 Cookie。 |
+| 网页界面 | 在浏览器中生成地址、管理地址、查看收件台和批次。 |
 | 双语界面 | 启动器和 CLI 帮助包含英文和简体中文。 |
 | 自动捕获 Cookie | 打开 iCloud+，点击「隐藏邮件地址」，捕获应用请求并保存 Cookie。 |
 | 本地收件台 | 通过 IMAP 拉取转发邮件，并在本地提取验证码。 |
@@ -167,6 +169,7 @@ Windows 下使用 `./gradlew.bat`。生成的 Debug APK 位于
 4. Manage iCloud cookie
 5. Local inbox and codes
 6. Exit
+W. Open web UI
 ```
 
 Cookie 管理菜单：
@@ -198,6 +201,47 @@ Cookie 管理菜单：
 ```text
 HIDEMYEMAIL_REGION=china
 ```
+
+## 网页界面
+
+网页界面在浏览器中提供与命令行相同的能力。它运行在本地，调用的是命令行同样的函数，
+读写同样的 `cookies.txt`、`emails.txt` 和 `hidemyemail.db`。
+
+```bash
+uv run hidemyemail webui --open
+```
+
+启动后访问 <http://127.0.0.1:8765/>，共有六个面板：
+
+| 面板 | 功能 |
+| --- | --- |
+| 概览 | 检测 Cookie 对应账号、估算剩余额度、查看本地数据库统计。 |
+| 生成 | 按标签、数量和可选批次生成并保留地址。 |
+| iCloud 地址 | 查看线上地址，停用或启用转发，修改标签和备注。 |
+| 本地地址 | 筛选本地数据库，标记 `unused`/`used`/`trash`，从 iCloud 同步，导出 CSV。 |
+| 收件台 | 配置 IMAP、同步邮件、查看提取出的验证码、标记已读。 |
+| 批次 | 创建、暂停、恢复、停止和查看批次。 |
+
+参数：
+
+| 参数 | 说明 |
+| --- | --- |
+| `--host` | 监听地址，默认 `127.0.0.1`。 |
+| `--port` | 监听端口，默认 `8765`。 |
+| `--token` | 访问所需的令牌；监听地址非本机时自动生成。 |
+| `--open` | 启动后自动打开默认浏览器。 |
+| `--cookie-file` | Cookie 文件路径，默认 `cookies.txt`。 |
+| `--output` | 生成地址追加写入的文件，默认 `emails.txt`。 |
+| `--db-file` | 本地数据库，默认 `hidemyemail.db`。 |
+| `--config-file` | 收件台配置，默认 `inbox_config.json`。 |
+| `--export-dir` | CSV 导出目录，默认 `exports`。 |
+| `--region` | `global` 或 `china`。 |
+
+在 Kubernetes 上部署见 [`deploy/k8s/README.md`](deploy/k8s/README.md)，
+容器镜像为 `ghcr.io/0ekk/hidemyemail-generator`。
+
+服务默认只监听本机。凡是能访问它的人都能操作 Cookie 背后的 iCloud 账号，
+所以除非同时设置令牌并且信任所在网络，否则请保持监听 `127.0.0.1`。
 
 ## 命令行用法
 
@@ -409,6 +453,7 @@ cookies.txt.bak
 - Cookie 只保存在本地，并已被 Git 忽略。
 - IMAP 配置和本地收件数据只保存在本地，并已被 Git 忽略。
 - 自动捕获使用独立浏览器配置。
+- 网页界面默认只监听 `127.0.0.1`，拒绝跨站写入请求；监听地址非本机时会强制要求令牌。
 - 项目不会主动收集、上传或分享你的 Cookie、邮件数据或验证码。
 - 不要提交 `cookies.txt`、`cookies.txt.bak`、`emails.txt`、`inbox_config.json`、`hidemyemail.db`、导出目录或浏览器配置目录。
 - 如果 token 或 Cookie 被意外公开，请到对应平台撤销或重新生成。

@@ -68,6 +68,7 @@ Alongside the basics it provides:
 - a native SwiftUI macOS app with in-app iCloud sign-in;
 - an optional Android client for phone-first alias management;
 - a one-click Windows launcher;
+- a local web UI that drives the same operations from a browser;
 - bilingual English / Simplified Chinese launcher and CLI output;
 - account-aware cookie management with browser-assisted capture;
 - a local IMAP inbox with verification-code extraction;
@@ -83,6 +84,7 @@ Alongside the basics it provides:
 - [macOS App](#macos-app)
 - [Android App](#android-app)
 - [Windows Launcher](#windows-launcher)
+- [Web UI](#web-ui)
 - [CLI Reference](#cli-reference)
 - [Cookie Management](#cookie-management)
 - [Local Inbox and Codes](#local-inbox-and-codes)
@@ -107,6 +109,7 @@ Alongside the basics it provides:
 | Native macOS app | Generate batches, browse and export local history, and automatically wait through rate limits. |
 | Android app | Phone-first companion for global and China iCloud, alias generation, and local address-state tracking. |
 | Windows launcher | Double-click menu for generation, listing, and cookie management. |
+| Web UI | Browser front end for generating, managing addresses, the inbox, and batches. |
 | Bilingual UI | Launcher and CLI help include English and Simplified Chinese text. |
 | Cookie capture | Open iCloud Plus, click Hide My Email, capture the app request, and save the cookie locally. |
 | Local inbox | Fetch forwarded mail through IMAP and extract verification codes locally. |
@@ -237,6 +240,7 @@ The Windows launcher is the recommended entry point for Windows users.
 4. Manage iCloud cookie
 5. Local inbox and codes
 6. Exit
+W. Open web UI
 ```
 
 Cookie management:
@@ -269,6 +273,49 @@ environment variable before launching:
 ```text
 HIDEMYEMAIL_REGION=china
 ```
+
+## Web UI
+
+The web UI exposes the same operations as the CLI from a browser. It runs
+locally, calls the same functions the commands do, and reads and writes the same
+`cookies.txt`, `emails.txt`, and `hidemyemail.db` files.
+
+```bash
+uv run hidemyemail webui --open
+```
+
+It serves <http://127.0.0.1:8765/> with six panels:
+
+| Panel | What it does |
+| --- | --- |
+| Overview | Cookie account check, rate-limit estimate, local database counts. |
+| Generate | Generate and reserve addresses with a label, count, and optional batch. |
+| iCloud addresses | List live addresses, deactivate or reactivate them, edit label and note. |
+| Local addresses | Filter the local database, mark `unused`/`used`/`trash`, sync from iCloud, export CSV. |
+| Inbox | Configure IMAP, sync mail, read extracted verification codes, mark messages read. |
+| Batches | Create, pause, resume, stop, and inspect batches. |
+
+Options:
+
+| Option | Description |
+| --- | --- |
+| `--host` | Interface to bind. Defaults to `127.0.0.1`. |
+| `--port` | Port to bind. Defaults to `8765`. |
+| `--token` | Require this token in the URL. Generated automatically when `--host` is not loopback. |
+| `--open` | Open the UI in the default browser after starting. |
+| `--cookie-file` | Path to the saved cookie file. Defaults to `cookies.txt`. |
+| `--output` | File generated addresses are appended to. Defaults to `emails.txt`. |
+| `--db-file` | Local database. Defaults to `hidemyemail.db`. |
+| `--config-file` | Local inbox config. Defaults to `inbox_config.json`. |
+| `--export-dir` | Directory CSV exports are written to. Defaults to `exports`. |
+| `--region` | `global` or `china`. |
+
+To run it in Kubernetes, see [`deploy/k8s/README.md`](deploy/k8s/README.md);
+the container image is `ghcr.io/0ekk/hidemyemail-generator`.
+
+The server binds loopback by default. Anyone who can reach it controls the
+iCloud account behind the cookie file, so keep it on `127.0.0.1` unless you
+also pass a token and trust the network.
 
 ## CLI Reference
 
@@ -504,6 +551,7 @@ These files are local-only and ignored by Git:
 - The macOS app contains no analytics, telemetry, advertising, or crash-reporting SDK. It connects only to Apple's iCloud endpoints and, when Inbox is configured, the user's chosen IMAP server.
 - IMAP configuration and local mailbox data are stored locally and ignored by Git.
 - Automatic capture uses a separate browser profile.
+- The web UI binds `127.0.0.1` by default, refuses cross-origin writes, and requires a generated token when bound beyond loopback.
 - The project does not intentionally collect, upload, or share your cookies, email data, or verification codes.
 - Do not commit `cookies.txt`, `cookies.txt.bak`, `emails.txt`, `inbox_config.json`, `hidemyemail.db`, exports, or browser profile data.
 - If a token or cookie is accidentally exposed, revoke it from the provider dashboard.

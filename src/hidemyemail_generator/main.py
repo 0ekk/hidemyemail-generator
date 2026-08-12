@@ -3,6 +3,7 @@ import base64
 import datetime
 import json
 import os
+import secrets
 import shutil
 import sys
 from typing import Union, List, Optional
@@ -896,27 +897,7 @@ def inbox_status(config_file: str, db_file: str, result_json: Optional[str]):
 
     conn = connect_db(db_file)
     try:
-        state_counts = {state: 0 for state in ADDRESS_STATES}
-        state_counts.update(
-            {
-                row["state"]: row["count"]
-                for row in conn.execute(
-                    "SELECT state, COUNT(*) AS count FROM addresses GROUP BY state"
-                ).fetchall()
-            }
-        )
-        counts = {
-            "addresses": conn.execute("SELECT COUNT(*) FROM addresses").fetchone()[0],
-            "messages": conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0],
-            "codes": conn.execute(
-                "SELECT COUNT(*) FROM messages WHERE code IS NOT NULL AND code != ''"
-            ).fetchone()[0],
-            "unread": count_unread(conn),
-            "deactivated": conn.execute(
-                "SELECT COUNT(*) FROM addresses WHERE is_active = 0"
-            ).fetchone()[0],
-            "states": state_counts,
-        }
+        counts = inbox_counts(conn)
     finally:
         conn.close()
 
@@ -1151,6 +1132,31 @@ def inbox_addresses(
         result_json,
         {"ok": True, "addresses": addresses, "error": None},
     )
+
+
+def inbox_counts(conn) -> dict:
+    """Local database totals, shared by `inbox status` and the web UI."""
+    state_counts = {state: 0 for state in ADDRESS_STATES}
+    state_counts.update(
+        {
+            row["state"]: row["count"]
+            for row in conn.execute(
+                "SELECT state, COUNT(*) AS count FROM addresses GROUP BY state"
+            ).fetchall()
+        }
+    )
+    return {
+        "addresses": conn.execute("SELECT COUNT(*) FROM addresses").fetchone()[0],
+        "messages": conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0],
+        "codes": conn.execute(
+            "SELECT COUNT(*) FROM messages WHERE code IS NOT NULL AND code != ''"
+        ).fetchone()[0],
+        "unread": count_unread(conn),
+        "deactivated": conn.execute(
+            "SELECT COUNT(*) FROM addresses WHERE is_active = 0"
+        ).fetchone()[0],
+        "states": state_counts,
+    }
 
 
 def _icloud_timestamp(value) -> Optional[str]:
@@ -1832,6 +1838,21 @@ def batch_export(
 @click.option("--result-json", type=click.Path(dir_okay=False), hidden=True)
 def quotacommand(db_file: str, result_json: Optional[str]):
     "Estimate how many addresses Apple will still accept / 估算剩余可创建数量"
+    snapshot = quota_snapshot(db_file)
+    console = Console()
+    console.log(
+        f"[bold green][OK][/] About {snapshot['remaining']} of {RATE_LIMIT_PER_WINDOW} "
+        f"left this window / 本时段约剩 {snapshot['remaining']} 个"
+    )
+    console.log(
+        "[dim]Estimated from addresses this database knows about; "
+        "Apple does not publish the real quota. / 基于本地数据估算[/]"
+    )
+    write_result_json(result_json, snapshot)
+
+
+def quota_snapshot(db_file: str = DEFAULT_DB_FILE) -> dict:
+    """Estimates the remaining rate-limit headroom from local creation times."""
     window_start = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(
         seconds=RATE_LIMIT_WINDOW_SECONDS
     )
@@ -1855,28 +1876,161 @@ def quotacommand(db_file: str, result_json: Optional[str]):
         except ValueError:
             resets_at = None
 
-    remaining = max(0, RATE_LIMIT_PER_WINDOW - used)
+    return {
+        "ok": True,
+        "used": used,
+        "remaining": max(0, RATE_LIMIT_PER_WINDOW - used),
+        "limit": RATE_LIMIT_PER_WINDOW,
+        "window_seconds": RATE_LIMIT_WINDOW_SECONDS,
+        "resets_at": resets_at,
+        "error": None,
+    }
+
+
+# Every option also reads an environment variable so a container can be
+# configured without putting a token or a path in its argv.
+@click.command()
+@click.option(
+    "--host",
+    default="127.0.0.1",
+    show_default=True,
+    envvar="HIDEMYEMAIL_WEBUI_HOST",
+    help="Interface to bind / 监听地址",
+)
+@click.option(
+    "--port",
+    default=8765,
+    show_default=True,
+    type=int,
+    envvar="HIDEMYEMAIL_WEBUI_PORT",
+    help="Port to bind / 监听端口",
+)
+@click.option(
+    "--cookie-file",
+    default=DEFAULT_COOKIE_FILENAME,
+    show_default=True,
+    envvar="HIDEMYEMAIL_COOKIE_FILE",
+    help="Path to cookie file / Cookie 文件路径",
+    type=click.Path(),
+)
+@click.option(
+    "--output",
+    default=DEFAULT_EMAIL_FILENAME,
+    show_default=True,
+    envvar="HIDEMYEMAIL_OUTPUT_FILE",
+    help="Path generated addresses are appended to / 邮箱输出文件路径",
+    type=click.Path(),
+)
+@click.option(
+    "--db-file",
+    default=DEFAULT_DB_FILE,
+    show_default=True,
+    envvar="HIDEMYEMAIL_DB_FILE",
+    help="Local inbox database file / 本地收件台数据库",
+    type=click.Path(),
+)
+@click.option(
+    "--config-file",
+    default=DEFAULT_INBOX_CONFIG_FILE,
+    show_default=True,
+    envvar="HIDEMYEMAIL_INBOX_CONFIG_FILE",
+    help="Local inbox config file / 本地收件台配置",
+    type=click.Path(),
+)
+@click.option(
+    "--export-dir",
+    default="exports",
+    show_default=True,
+    envvar="HIDEMYEMAIL_EXPORT_DIR",
+    help="Directory CSV exports are written to / CSV 导出目录",
+    type=click.Path(),
+)
+@click.option(
+    "--region",
+    default=DEFAULT_REGION,
+    show_default=True,
+    type=REGION_CHOICE,
+    envvar="HIDEMYEMAIL_REGION",
+    help="iCloud region to use / iCloud 区域",
+)
+@click.option(
+    "--token",
+    default="",
+    envvar="HIDEMYEMAIL_WEBUI_TOKEN",
+    help="Require this token in the URL / 访问所需的令牌 (非本机监听时自动生成)",
+)
+@click.option(
+    "--open/--no-open",
+    "open_browser",
+    default=False,
+    show_default=True,
+    help="Open the web UI in a browser / 启动后打开浏览器",
+)
+def webuicommand(
+    host: str,
+    port: int,
+    cookie_file: str,
+    output: str,
+    db_file: str,
+    config_file: str,
+    export_dir: str,
+    region: str,
+    token: str,
+    open_browser: bool,
+):
+    "Serve the local web UI / 启动本地网页界面"
+    import webbrowser
+
+    from aiohttp import web
+
+    from hidemyemail_generator import webui
+
     console = Console()
-    console.log(
-        f"[bold green][OK][/] About {remaining} of {RATE_LIMIT_PER_WINDOW} left this window "
-        f"/ 本时段约剩 {remaining} 个"
+    generated_token = not token and not webui.is_loopback(host)
+    if generated_token:
+        # Reachable from the network: an unauthenticated UI here would hand
+        # anyone on it full control of the account behind the cookie.
+        token = secrets.token_urlsafe(24)
+        console.log(
+            "[bold yellow][WARN][/] Binding beyond localhost; generated an access token. "
+            "/ 监听地址非本机，已生成访问令牌。"
+        )
+
+    settings = webui.Settings(
+        cookie_file=cookie_file,
+        output_file=output,
+        db_file=db_file,
+        config_file=config_file,
+        export_dir=export_dir,
+        region=region,
+        token=token,
     )
-    console.log(
-        "[dim]Estimated from addresses this database knows about; "
-        "Apple does not publish the real quota. / 基于本地数据估算[/]"
-    )
-    write_result_json(
-        result_json,
-        {
-            "ok": True,
-            "used": used,
-            "remaining": remaining,
-            "limit": RATE_LIMIT_PER_WINDOW,
-            "window_seconds": RATE_LIMIT_WINDOW_SECONDS,
-            "resets_at": resets_at,
-            "error": None,
-        },
-    )
+    # A token we generated is only knowable from this line, so it has to be
+    # printed. One the caller supplied is not: keeping it out of the log means
+    # it never reaches a log collector.
+    url = webui.server_url(host, port, token if generated_token else "")
+    console.log("[bold green][OK][/] Web UI started / 网页界面已启动")
+    # Printed unwrapped and unhighlighted so the URL stays one copyable line.
+    console.print(f"    {url}", soft_wrap=True, highlight=False)
+    if token and not generated_token:
+        console.log("[dim]Append ?token=… to the URL / 访问时需在网址后加 ?token=…[/]")
+    console.log("[dim]Press Ctrl+C to stop / 按 Ctrl+C 停止[/]")
+    if open_browser:
+        try:
+            webbrowser.open(url)
+        except Exception:
+            pass
+
+    try:
+        web.run_app(
+            webui.create_app(settings),
+            host=host,
+            port=port,
+            print=None,
+            handle_signals=True,
+        )
+    except KeyboardInterrupt:
+        pass
 
 
 async def _capture_cookie(cookie_file: str, region: str = DEFAULT_REGION) -> bool:
@@ -2005,6 +2159,7 @@ cli.add_command(deactivatecommand, name="deactivate")
 cli.add_command(reactivatecommand, name="reactivate")
 cli.add_command(updatemetadatacommand, name="update-metadata")
 cli.add_command(quotacommand, name="quota")
+cli.add_command(webuicommand, name="webui")
 cli.add_command(inboxgroup)
 cli.add_command(batchgroup)
 

@@ -116,8 +116,11 @@ def main_menu() -> None:
         print("4. Manage iCloud cookie / 管理 iCloud Cookie")
         print("5. Local inbox and codes / 本地收件台和验证码")
         print("6. Exit / 退出")
+        # A letter, not the next number: keeps this menu purely additive so an
+        # upstream entry can claim 6, 7, … without renumbering anything here.
+        print("W. Open web UI / 打开网页界面")
         print()
-        choice = input("Choose an option / 请选择 [1-6]: ").strip()
+        choice = input("Choose an option / 请选择 [1-6, W]: ").strip()
 
         if choice == "1":
             generate()
@@ -131,6 +134,8 @@ def main_menu() -> None:
             inbox_menu()
         elif choice == "6":
             return
+        elif choice.lower() == "w":
+            web_ui()
 
 
 def generate() -> None:
@@ -172,6 +177,22 @@ def list_inactive() -> None:
     code = run_cli("list", "--inactive", "--cookie-file", COOKIE_FILE, "--region", REGION)
     if code:
         print("[ERROR] List inactive command failed / 查看已停用地址失败.")
+    pause()
+
+
+def web_ui() -> None:
+    print()
+    print("Starting the local web UI. It stays open until you press Ctrl+C.")
+    print("正在启动本地网页界面，按 Ctrl+C 可以停止。")
+    print()
+    run_cli(
+        "webui",
+        "--cookie-file",
+        COOKIE_FILE,
+        "--region",
+        REGION,
+        "--open",
+    )
     pause()
 
 

@@ -39,6 +39,7 @@ uv run --frozen --with pyinstaller pyinstaller \
   --onefile \
   --name hidemyemail \
   --collect-data certifi \
+  --add-data "src/hidemyemail_generator/static:hidemyemail_generator/static" \
   --distpath "$BUILD_ROOT/helper" \
   --workpath "$BUILD_ROOT/pyinstaller/work" \
   --specpath "$BUILD_ROOT/pyinstaller" \

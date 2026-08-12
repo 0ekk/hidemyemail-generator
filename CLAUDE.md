@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+**Read [AGENTS.md](AGENTS.md) before changing anything.** This repo is a fork of an
+active upstream, and AGENTS.md carries the rules that keep it mergeable — where new
+code belongs, which lines not to touch, and the known conflict hotspots.
+
 ## What this is
 
 A small CLI that automates generation of Apple iCloud "Hide My Email" (HME) addresses via iCloud's private maildomain web API. Requires an active iCloud+ subscription and valid iCloud session cookies. Apple rate-limits to ~5 emails / 30 min per family member and caps total HME addresses at ~700.
@@ -14,6 +18,7 @@ Python 3.12+ and [uv](https://docs.astral.sh/uv/) are required.
 uv sync                                              # install deps + create .venv
 uv run hidemyemail generate --label test --count 5   # generate + reserve N emails
 uv run hidemyemail list                              # list existing HME addresses
+uv run hidemyemail webui --open                      # serve the local web UI on 127.0.0.1:8765
 uv run ruff check                                    # lint
 uv run ruff format                                   # format
 ```
@@ -51,7 +56,7 @@ Auth is entirely cookie-based — there is no login flow. The user exports their
 
 ## Architecture
 
-Two modules under `src/hidemyemail_generator/`:
+Modules under `src/hidemyemail_generator/`:
 
 - **`hidemyemail.py`** — `HideMyEmail`, the low-level async API client (plain `aiohttp`, no UI). It is an async context manager (`async with`) that owns the `ClientSession`: the session is created in `__aenter__` with browser-mimicking headers plus the cookie string, and closed in `__aexit__`. Three methods, each returning a raw response dict and never raising — timeouts/exceptions are caught and returned as `{"error": 1, "reason": ...}`:
   - `generate_email()` → `POST {base_v1}/generate`
@@ -60,6 +65,11 @@ Two modules under `src/hidemyemail_generator/`:
   - Base host is `p68-maildomainws.icloud.com`. A shared class-level `params` dict carries `clientBuildNumber` / `clientMasteringNumber` / etc.
 
 - **`main.py`** — the Click CLI plus `RichHideMyEmail`, a subclass that layers the Rich console UI (colored logging, status spinner, table output) and file output on top of the base client without changing its logic. Entry point is the `cli` Click group (`pyproject.toml` console script `hidemyemail`). Two commands are registered, `generate` and `list` (handler functions are named `generatecommand`/`listcommand` and registered via `cli.add_command(..., name=...)`).
+
+- **`webui.py`** — an `aiohttp.web` app (no extra dependency) serving a JSON API plus the single-page front end in `static/index.html`. Every handler delegates to the same `main.py` functions the Click commands call (`_generate`, `_list`, `_set_active`, `_update_metadata`, `_whoami`, `_sync_hme_to_db`, `quota_snapshot`, `inbox_counts`) and returns the same `{"ok", ..., "error"}` envelope the `--result-json` files use, so the browser and the terminal cannot drift apart. `main.py` imports it lazily inside `webuicommand`; `webui.py` imports `main` inside handlers — keep both directions lazy or the import cycles.
+  - Blocking sqlite/IMAP work goes through `asyncio.to_thread`.
+  - `auth_middleware` refuses cross-origin writes and enforces `--token`, which `webui` generates automatically when `--host` is not loopback. Do not weaken this: any reachable client controls the iCloud account behind the cookie file.
+  - `static/index.html` is a dependency-free page (vanilla JS, inline CSS). It ships to frozen binaries through the `--add-data` flag in `scripts/build-macos-app.sh` and the Windows job in `.github/workflows/release.yml`; `webui.static_dir()` resolves it from `sys._MEIPASS` there.
 
 ### Generation flow
 
